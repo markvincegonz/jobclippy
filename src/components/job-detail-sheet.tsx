@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useJobStore, JobStage } from "@/lib/job-store";
+import { useToast } from "@/components/ui/toast";
 
 const STAGES: { id: JobStage; label: string }[] = [
   { id: "wishlist", label: "Wishlist" },
@@ -25,8 +26,12 @@ const STAGES: { id: JobStage; label: string }[] = [
 ];
 
 export function JobDetailSheet() {
-  const { selectedJob, setSelectedJobId, moveStage, addNote, deleteJob } = useJobStore();
+  const { selectedJob, setSelectedJobId, moveStage, addNote, deleteJob, restoreLastDeletedJob } =
+    useJobStore();
+  const { toast } = useToast();
   const [noteInput, setNoteInput] = React.useState("");
+  const [confirmingJobId, setConfirmingJobId] = React.useState<string | null>(null);
+  const isConfirmingDelete = Boolean(selectedJob && confirmingJobId === selectedJob.id);
 
   if (!selectedJob) return null;
 
@@ -35,6 +40,46 @@ export function JobDetailSheet() {
     if (!noteInput.trim()) return;
     addNote(selectedJob.id, noteInput);
     setNoteInput("");
+    toast({
+      title: "Note added",
+      description: "Recorded in opportunity timeline",
+      type: "success",
+      duration: 3000,
+    });
+  };
+
+  const handleMoveStage = (stageId: JobStage) => {
+    if (selectedJob.stage === stageId) return;
+    moveStage(selectedJob.id, stageId);
+    toast({
+      title: "Stage updated",
+      description: `Moved to ${STAGES.find((s) => s.id === stageId)?.label}`,
+      type: "default",
+      duration: 3000,
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    const jobToDelete = selectedJob;
+    deleteJob(jobToDelete.id);
+    setConfirmingJobId(null);
+    toast({
+      title: "Opportunity removed",
+      description: `Removed from pipeline`,
+      type: "undo",
+      duration: 6000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          restoreLastDeletedJob();
+          toast({
+            title: "Opportunity restored",
+            type: "success",
+            duration: 3000,
+          });
+        },
+      },
+    });
   };
 
   return (
@@ -74,7 +119,7 @@ export function JobDetailSheet() {
                 key={s.id}
                 variant={selectedJob.stage === s.id ? "default" : "secondary"}
                 size="sm"
-                onClick={() => moveStage(selectedJob.id, s.id)}
+                onClick={() => handleMoveStage(s.id)}
                 className="text-xs h-7 px-2.5 rounded-md font-medium"
               >
                 {s.label}
@@ -169,18 +214,39 @@ export function JobDetailSheet() {
         </div>
 
         {/* Action Footer */}
-        <div className="pt-4 border-t border-hairline flex items-center justify-between">
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              deleteJob(selectedJob.id);
-            }}
-            className="gap-1 text-xs font-medium"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete Opportunity
-          </Button>
+        <div className="pt-4 border-t border-hairline flex items-center justify-between gap-3">
+          {isConfirmingDelete ? (
+            <div className="flex items-center gap-2 animate-in fade-in duration-150">
+              <span className="text-xs text-destructive font-medium">Delete permanently?</span>
+              <Button
+                variant="destructive"
+                size="sm"
+                data-testid="confirm-delete-opportunity-btn"
+                onClick={handleConfirmDelete}
+                className="text-xs font-medium h-7 px-2.5"
+              >
+                Yes, Delete
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setConfirmingJobId(null)}
+                className="text-xs font-medium h-7 px-2.5"
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setConfirmingJobId(selectedJob.id)}
+              className="gap-1 text-xs font-medium"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete Opportunity
+            </Button>
+          )}
 
           <Button
             variant="secondary"

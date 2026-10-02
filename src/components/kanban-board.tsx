@@ -16,10 +16,22 @@ import { JobCard } from "@/components/job-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { QuickAddModal } from "@/components/quick-add-modal";
 import { JobDetailSheet } from "@/components/job-detail-sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useJobStore, JobStage } from "@/lib/job-store";
+import { useToast } from "@/components/ui/toast";
+import { ClippyMascot } from "@/components/clippy-mascot";
+import { ConfettiCelebration } from "@/components/confetti-celebration";
+import { cn } from "@/lib/utils";
 
 const COLUMNS: { id: JobStage; title: string; description: string }[] = [
   {
@@ -49,11 +61,95 @@ const COLUMNS: { id: JobStage; title: string; description: string }[] = [
   },
 ];
 
+const EMPTY_STATE_MESSAGES: Record<JobStage, { headline: string; subtitle: string }> = {
+  wishlist: {
+    headline: "Your Target Roles",
+    subtitle: "Save dream positions from LinkedIn or job boards to track your pipeline.",
+  },
+  applied: {
+    headline: "Applications in Review",
+    subtitle: "Submitted applications currently being reviewed by hiring teams.",
+  },
+  interviewing: {
+    headline: "Live Conversations",
+    subtitle: "Phone screens, technical assessments, and live interviews in progress.",
+  },
+  offer: {
+    headline: "Offers & Proposals",
+    subtitle: "Your hard work lands here. Evaluate and negotiate compensation packages.",
+  },
+  archived: {
+    headline: "Concluded Searches",
+    subtitle: "Positions closed, paused, or saved for historical reference.",
+  },
+};
+
 export function KanbanBoard() {
-  const { jobs, resetToSeeds } = useJobStore();
+  const { jobs, resetToSeeds, moveStage } = useJobStore();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedSkill, setSelectedSkill] = React.useState<string | null>(null);
   const [isAddOpen, setIsAddOpen] = React.useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = React.useState(false);
+  const [draggingJobId, setDraggingJobId] = React.useState<string | null>(null);
+  const [dragOverColId, setDragOverColId] = React.useState<JobStage | null>(null);
+  const [isOfferCelebrationActive, setIsOfferCelebrationActive] = React.useState(false);
+  const { toast } = useToast();
+
+  const handleCelebrationComplete = React.useCallback(() => {
+    setIsOfferCelebrationActive(false);
+  }, []);
+
+  const handleCardDragStart = React.useCallback((jobId: string) => {
+    setDraggingJobId(jobId);
+    // Dismiss any existing celebration when picking up a card so it doesn't linger or re-trigger
+    setIsOfferCelebrationActive(false);
+  }, []);
+
+  const handleCardDragEnd = React.useCallback(() => {
+    setDraggingJobId(null);
+    setDragOverColId(null);
+  }, []);
+
+  const handleColumnDrop = React.useCallback(
+    (targetStage: JobStage) => {
+      if (!draggingJobId) return;
+      const targetJob = jobs.find((j) => j.id === draggingJobId);
+      if (targetJob && targetJob.stage !== targetStage) {
+        moveStage(targetJob.id, targetStage);
+
+        if (targetStage === "offer") {
+          setIsOfferCelebrationActive(true);
+          toast({
+            title: "🎉 Huge Milestone: Offer Received!",
+            description: `Congratulations on ${targetJob.title} at ${targetJob.company}!`,
+            type: "success",
+            duration: 5000,
+          });
+        } else {
+          toast({
+            title: "Stage updated",
+            description: `Moved "${targetJob.title}" to ${COLUMNS.find((c) => c.id === targetStage)?.title}`,
+            type: "default",
+            duration: 3000,
+          });
+        }
+      }
+      setDraggingJobId(null);
+      setDragOverColId(null);
+    },
+    [draggingJobId, jobs, moveStage, toast]
+  );
+
+  const handleConfirmReset = () => {
+    resetToSeeds();
+    setIsResetConfirmOpen(false);
+    toast({
+      title: "Demo reset complete",
+      description: "Restored sample opportunities and initial pipeline stages",
+      type: "default",
+      duration: 3500,
+    });
+  };
 
   // Extract all unique skills across jobs for quick filter pills
   const allSkills = React.useMemo(() => {
@@ -89,13 +185,20 @@ export function KanbanBoard() {
       {/* Top Header — 56px Linear Top Nav */}
       <header className="sticky top-0 z-30 h-14 border-b border-hairline bg-canvas/90 backdrop-blur-md px-6 flex items-center justify-between shadow-none">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-2 border border-hairline text-primary surface-lift">
-            <Sparkles className="h-4 w-4" />
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-2 border border-hairline text-primary surface-lift group cursor-pointer hover:border-primary/50 transition-colors"
+            title="JobClippy: Your Career Command Center"
+          >
+            <ClippyMascot className="h-5 w-5 group-hover:scale-110 transition-transform" />
           </div>
           <div className="flex items-baseline gap-2">
             <h1 className="text-sm font-medium tracking-tight text-ink">JobClippy</h1>
             <span className="text-xs text-ink-subtle hidden sm:inline font-normal">
               Job Hunt Command Center
+            </span>
+            <span className="hidden xl:inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+              <Sparkles className="h-3 w-3" />
+              Empowering your career moves
             </span>
           </div>
         </div>
@@ -115,7 +218,7 @@ export function KanbanBoard() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={resetToSeeds}
+            onClick={() => setIsResetConfirmOpen(true)}
             title="Reset to sample data"
             className="text-xs gap-1 hidden md:flex"
           >
@@ -215,12 +318,33 @@ export function KanbanBoard() {
         <section className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-start">
           {COLUMNS.map((col) => {
             const colJobs = filteredJobs.filter((j) => j.stage === col.id);
+            const isDropTarget = dragOverColId === col.id;
 
             return (
               <div
                 key={col.id}
                 data-testid={`column-${col.id}`}
-                className="flex flex-col rounded-lg border border-hairline bg-surface-1/50 p-3 min-h-[520px] surface-lift shadow-none"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dragOverColId !== col.id) {
+                    setDragOverColId(col.id);
+                  }
+                }}
+                onDragLeave={(e) => {
+                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                  if (dragOverColId === col.id) {
+                    setDragOverColId(null);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  handleColumnDrop(col.id);
+                }}
+                className={cn(
+                  "flex flex-col rounded-lg border border-hairline bg-surface-1/50 p-3 min-h-[520px] surface-lift shadow-none transition-all duration-150",
+                  isDropTarget && "border-primary/60 bg-surface-2/90 ring-2 ring-primary/20 scale-[1.01]"
+                )}
               >
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-3 mb-3 border-b border-hairline">
@@ -238,13 +362,40 @@ export function KanbanBoard() {
                 {/* Job Cards Column */}
                 <div className="flex-1 space-y-3">
                   {colJobs.map((job) => (
-                    <JobCard key={job.id} job={job} />
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      isDragging={draggingJobId === job.id}
+                      onDragStart={handleCardDragStart}
+                      onDragEnd={handleCardDragEnd}
+                    />
                   ))}
 
-                  {colJobs.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-36 rounded-md border border-dashed border-hairline p-4 text-center">
-                      <Layers className="h-5 w-5 text-ink-tertiary mb-1" />
-                      <p className="text-xs text-ink-tertiary font-normal">No jobs in {col.title}</p>
+                  {/* Drop zone indicator when hovering */}
+                  {isDropTarget && draggingJobId && (
+                    <div className="h-16 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5 flex items-center justify-center text-xs text-primary font-medium animate-pulse">
+                      Drop to move into {col.title}
+                    </div>
+                  )}
+
+                  {colJobs.length === 0 && !isDropTarget && (
+                    <div className="flex flex-col items-center justify-center min-h-[160px] rounded-lg border border-dashed border-hairline/80 p-5 text-center bg-surface-1/30">
+                      <div className="p-2 rounded-full bg-surface-2 border border-hairline mb-2 text-ink-subtle">
+                        <Layers className="h-4 w-4" />
+                      </div>
+                      <p className="text-xs font-medium text-ink">{EMPTY_STATE_MESSAGES[col.id].headline}</p>
+                      <p className="text-[11px] text-ink-subtle mt-0.5 max-w-[200px] leading-relaxed">
+                        {EMPTY_STATE_MESSAGES[col.id].subtitle}
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsAddOpen(true)}
+                        className="mt-3 text-[11px] h-6 px-2 text-primary hover:text-primary-hover gap-1"
+                      >
+                        <Plus className="h-3 w-3" />
+                        <span>Add opportunity</span>
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -257,6 +408,44 @@ export function KanbanBoard() {
       {/* Slide-over Detail Sheet & Quick Add Dialog */}
       <JobDetailSheet />
       <QuickAddModal open={isAddOpen} onOpenChange={setIsAddOpen} />
+
+      {/* Confetti Milestone Celebration Canvas */}
+      <ConfettiCelebration
+        active={isOfferCelebrationActive}
+        onComplete={handleCelebrationComplete}
+      />
+
+      {/* Reset Demo Confirmation Dialog */}
+      <Dialog open={isResetConfirmOpen} onOpenChange={setIsResetConfirmOpen}>
+        <DialogClose onClick={() => setIsResetConfirmOpen(false)} />
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-ink">
+            <RotateCcw className="h-4 w-4 text-ink-muted" />
+            <span>Reset to Sample Pipeline?</span>
+          </DialogTitle>
+          <DialogDescription>
+            This action will restore the 5 initial sample jobs and clear any opportunities or notes added during this session.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsResetConfirmOpen(false)}
+            className="text-xs font-medium"
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleConfirmReset}
+            className="text-xs font-medium"
+          >
+            Confirm Reset
+          </Button>
+        </DialogFooter>
+      </Dialog>
     </div>
   );
 }

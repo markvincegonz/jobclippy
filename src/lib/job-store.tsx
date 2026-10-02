@@ -130,11 +130,13 @@ const SEED_JOBS: Job[] = [
 
 interface JobStoreContextType {
   jobs: Job[];
+  isHydrated: boolean;
   addJob: (jobData: Omit<Job, "id" | "createdAt" | "notes"> & { notes?: string }) => Job;
   updateJob: (id: string, updates: Partial<Job>) => void;
   moveStage: (id: string, newStage: JobStage) => void;
   addNote: (jobId: string, text: string) => void;
-  deleteJob: (id: string) => void;
+  deleteJob: (id: string) => Job | null;
+  restoreLastDeletedJob: () => Job | null;
   resetToSeeds: () => void;
   selectedJob: Job | null;
   setSelectedJobId: (id: string | null) => void;
@@ -144,38 +146,92 @@ const JobStoreContext = React.createContext<JobStoreContextType | null>(null);
 
 const STORAGE_KEY = "jobclippy_jobs_v1";
 
-export function JobStoreProvider({ children }: { children: React.ReactNode }) {
-  const [jobs, setJobs] = React.useState<Job[]>([]);
-  const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null);
-  const [isLoaded, setIsLoaded] = React.useState(false);
+let memoryJobs: Job[] | null = null;
+const listeners = new Set<() => void>();
 
-  React.useEffect(() => {
+function notify() {
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+function getStoredJobs(): Job[] {
+  if (typeof window === "undefined") {
+    return SEED_JOBS;
+  }
+  if (memoryJobs === null) {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        setJobs(JSON.parse(stored));
+        memoryJobs = JSON.parse(stored);
       } else {
-        setJobs(SEED_JOBS);
+        memoryJobs = SEED_JOBS;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_JOBS));
       }
     } catch {
-      setJobs(SEED_JOBS);
+      memoryJobs = SEED_JOBS;
     }
-    setIsLoaded(true);
-  }, []);
+  }
+  return memoryJobs!;
+}
 
-  React.useEffect(() => {
-    if (isLoaded) {
+function saveStoredJobs(jobs: Job[]) {
+  memoryJobs = jobs;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
+    } catch (err) {
+      console.error("Failed to save jobs to localStorage", err);
+    }
+  }
+  notify();
+}
+
+function subscribe(onStoreChange: () => void) {
+  listeners.add(onStoreChange);
+  const handleStorage = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEY && e.newValue) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
-      } catch (err) {
-        console.error("Failed to save jobs to localStorage", err);
+        memoryJobs = JSON.parse(e.newValue);
+        notify();
+      } catch {
+        // ignore
       }
     }
-  }, [jobs, isLoaded]);
+  };
+  if (typeof window !== "undefined") {
+    window.addEventListener("storage", handleStorage);
+  }
+  return () => {
+    listeners.delete(onStoreChange);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("storage", handleStorage);
+    }
+  };
+}
+
+const getServerSnapshot = () => SEED_JOBS;
+
+export function JobStoreProvider({ children }: { children: React.ReactNode }) {
+  const isHydrated = React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
+  const storedJobs = React.useSyncExternalStore(
+    subscribe,
+    getStoredJobs,
+    getServerSnapshot
+  );
+
+  // During SSR and initial client hydration, guarantee matching HTML with server
+  const jobs = isHydrated ? storedJobs : SEED_JOBS;
+  const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null);
 
   const addJob = React.useCallback(
     (jobData: Omit<Job, "id" | "createdAt" | "notes"> & { notes?: string }) => {
+      const currentJobs = getStoredJobs();
       const newJob: Job = {
         id: `job-${Date.now()}`,
         title: jobData.title,
@@ -198,49 +254,91 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
           : [],
       };
 
-      setJobs((prev) => [newJob, ...prev]);
+      saveStoredJobs([newJob, ...currentJobs]);
       return newJob;
     },
     []
   );
 
-  const updateJob = React.useCallback((id: string, updates: Partial<Job>) => {
-    setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...updates } : j)));
-  }, []);
+  const updateJob = React.useCallback(
+    (id: string, updates: Partial<Job>) => {
+      const currentJobs = getStoredJobs();
+      saveStoredJobs(currentJobs.map((j) => (j.id === id ? { ...j, ...updates } : j)));
+    },
+    []
+  );
 
-  const moveStage = React.useCallback((id: string, newStage: JobStage) => {
-    setJobs((prev) =>
-      prev.map((j) => {
-        if (j.id !== id) return j;
-        const updates: Partial<Job> = { stage: newStage };
-        if (newStage === "applied" && !j.appliedAt) {
-          updates.appliedAt = new Date().toISOString();
-        }
-        return { ...j, ...updates };
-      })
-    );
-  }, []);
+  const moveStage = React.useCallback(
+    (id: string, newStage: JobStage) => {
+      const currentJobs = getStoredJobs();
+      saveStoredJobs(
+        currentJobs.map((j) => {
+          if (j.id !== id) return j;
+          const updates: Partial<Job> = { stage: newStage };
+          if (newStage === "applied" && !j.appliedAt) {
+            updates.appliedAt = new Date().toISOString();
+          }
+          return { ...j, ...updates };
+        })
+      );
+    },
+    []
+  );
 
-  const addNote = React.useCallback((jobId: string, text: string) => {
-    if (!text.trim()) return;
-    const newNote: JobNote = {
-      id: `note-${Date.now()}`,
-      text: text.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    setJobs((prev) =>
-      prev.map((j) => (j.id === jobId ? { ...j, notes: [newNote, ...j.notes] } : j))
-    );
-  }, []);
+  const addNote = React.useCallback(
+    (jobId: string, text: string) => {
+      if (!text.trim()) return;
+      const newNote: JobNote = {
+        id: `note-${Date.now()}`,
+        text: text.trim(),
+        createdAt: new Date().toISOString(),
+      };
+      const currentJobs = getStoredJobs();
+      saveStoredJobs(
+        currentJobs.map((j) => (j.id === jobId ? { ...j, notes: [newNote, ...j.notes] } : j))
+      );
+    },
+    []
+  );
 
-  const deleteJob = React.useCallback((id: string) => {
-    setJobs((prev) => prev.filter((j) => j.id !== id));
-    setSelectedJobId((current) => (current === id ? null : current));
+  const lastDeletedRecordRef = React.useRef<{
+    job: Job;
+    index: number;
+  } | null>(null);
+
+  const deleteJob = React.useCallback(
+    (id: string): Job | null => {
+      const currentJobs = getStoredJobs();
+      const targetIndex = currentJobs.findIndex((j) => j.id === id);
+      if (targetIndex === -1) return null;
+      const targetJob = currentJobs[targetIndex];
+
+      lastDeletedRecordRef.current = { job: targetJob, index: targetIndex };
+      saveStoredJobs(currentJobs.filter((j) => j.id !== id));
+      setSelectedJobId((current) => (current === id ? null : current));
+      return targetJob;
+    },
+    []
+  );
+
+  const restoreLastDeletedJob = React.useCallback((): Job | null => {
+    const record = lastDeletedRecordRef.current;
+    if (!record) return null;
+    const { job, index } = record;
+
+    const currentJobs = getStoredJobs();
+    if (currentJobs.some((j) => j.id === job.id)) return null;
+    const next = [...currentJobs];
+    const insertAt = Math.min(Math.max(0, index), next.length);
+    next.splice(insertAt, 0, job);
+    saveStoredJobs(next);
+
+    lastDeletedRecordRef.current = null;
+    return job;
   }, []);
 
   const resetToSeeds = React.useCallback(() => {
-    setJobs(SEED_JOBS);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_JOBS));
+    saveStoredJobs(SEED_JOBS);
   }, []);
 
   const selectedJob = React.useMemo(
@@ -252,11 +350,13 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
     <JobStoreContext.Provider
       value={{
         jobs,
+        isHydrated,
         addJob,
         updateJob,
         moveStage,
         addNote,
         deleteJob,
+        restoreLastDeletedJob,
         resetToSeeds,
         selectedJob,
         setSelectedJobId,

@@ -15,9 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Job, JobStage, useJobStore } from "@/lib/job-store";
+import { useToast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 
 interface JobCardProps {
   job: Job;
+  onDragStart?: (jobId: string) => void;
+  onDragEnd?: () => void;
+  isDragging?: boolean;
 }
 
 const STAGE_LABELS: Record<JobStage, string> = {
@@ -28,22 +33,92 @@ const STAGE_LABELS: Record<JobStage, string> = {
   archived: "Archived",
 };
 
-export function JobCard({ job }: JobCardProps) {
-  const { moveStage, deleteJob, setSelectedJobId } = useJobStore();
+export function JobCard({ job, onDragStart, onDragEnd, isDragging }: JobCardProps) {
+  const { moveStage, deleteJob, restoreLastDeletedJob, setSelectedJobId } = useJobStore();
+  const { toast } = useToast();
 
   const stages: JobStage[] = ["wishlist", "applied", "interviewing", "offer", "archived"];
+
+  const handleDelete = () => {
+    deleteJob(job.id);
+    toast({
+      title: "Opportunity removed",
+      description: `Removed from ${STAGE_LABELS[job.stage]}`,
+      type: "undo",
+      duration: 6000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          restoreLastDeletedJob();
+          toast({
+            title: "Opportunity restored",
+            type: "success",
+            duration: 3000,
+          });
+        },
+      },
+    });
+  };
+
+  const handleStageSelect = (stage: JobStage) => {
+    if (stage === job.stage) return;
+    moveStage(job.id, stage);
+    toast({
+      title: "Stage updated",
+      description: `Moved to ${STAGE_LABELS[stage]}`,
+      type: "default",
+      duration: 3000,
+    });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+    if (targetTag === "input" || targetTag === "textarea") return;
+
+    const currentIndex = stages.indexOf(job.stage);
+    if ((e.altKey && e.key === "ArrowRight") || e.key === "]") {
+      e.preventDefault();
+      if (currentIndex < stages.length - 1) {
+        handleStageSelect(stages[currentIndex + 1]);
+      }
+    } else if ((e.altKey && e.key === "ArrowLeft") || e.key === "[") {
+      e.preventDefault();
+      if (currentIndex > 0) {
+        handleStageSelect(stages[currentIndex - 1]);
+      }
+    } else if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+      e.preventDefault();
+      setSelectedJobId(job.id);
+    }
+  };
 
   return (
     <div
       data-testid={`job-card-${job.id}`}
       onClick={() => setSelectedJobId(job.id)}
-      className="group relative cursor-pointer rounded-lg border border-hairline bg-surface-1 hover:bg-surface-2 hover:border-hairline-strong surface-lift transition-all duration-150 flex flex-col justify-between shadow-none select-none"
+      onKeyDown={handleKeyDown}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", job.id);
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart?.(job.id);
+      }}
+      onDragEnd={() => {
+        onDragEnd?.();
+      }}
+      tabIndex={0}
+      role="article"
+      aria-label={`${job.title} at ${job.company}`}
+      className={cn(
+        "group relative cursor-grab active:cursor-grabbing rounded-lg border border-hairline bg-surface-1 hover:bg-surface-2 hover:border-hairline-strong surface-lift transition-all duration-150 flex flex-col justify-between shadow-none select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-focus",
+        isDragging && "opacity-35 scale-[0.98] border-dashed border-primary"
+      )}
     >
       {/* Header section */}
       <div className="p-4 pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1 min-w-0">
-            <h3 className="text-sm font-medium text-ink group-hover:text-primary transition-colors line-clamp-1">
+            <h3 className="text-sm font-medium text-ink group-hover:text-primary transition-colors line-clamp-1 break-words">
               {job.title}
             </h3>
             <div className="flex items-center gap-1.5 text-xs text-ink-muted">
@@ -58,7 +133,7 @@ export function JobCard({ job }: JobCardProps) {
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-ink-muted hover:text-ink hover:bg-surface-3"
+                  className="opacity-70 sm:opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-ink-muted hover:text-ink hover:bg-surface-3 cursor-pointer"
                   aria-label="Job actions"
                 >
                   <MoreVertical className="h-3.5 w-3.5" />
@@ -71,7 +146,7 @@ export function JobCard({ job }: JobCardProps) {
               {stages.map((stage) => (
                 <DropdownMenuItem
                   key={stage}
-                  onClick={() => moveStage(job.id, stage)}
+                  onClick={() => handleStageSelect(stage)}
                   className={job.stage === stage ? "font-medium text-primary bg-surface-2" : ""}
                 >
                   <ArrowRight className="mr-2 h-3 w-3 opacity-60" />
@@ -79,7 +154,7 @@ export function JobCard({ job }: JobCardProps) {
                 </DropdownMenuItem>
               ))}
               <div className="my-1 border-t border-hairline" />
-              <DropdownMenuItem onClick={() => deleteJob(job.id)} destructive>
+              <DropdownMenuItem onClick={handleDelete} destructive>
                 <Trash2 className="mr-2 h-3 w-3" />
                 Delete Job
               </DropdownMenuItem>
@@ -140,7 +215,7 @@ export function JobCard({ job }: JobCardProps) {
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-1 text-primary hover:text-primary-hover transition-colors font-medium cursor-pointer"
+            className="flex items-center gap-1 text-primary hover:text-primary-hover transition-colors font-medium cursor-pointer py-1 px-1.5 rounded-xs hover:bg-surface-2 min-h-[28px]"
           >
             <span>Original</span>
             <ExternalLink className="h-3 w-3" />

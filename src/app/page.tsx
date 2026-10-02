@@ -1,12 +1,15 @@
 "use client";
 
 import { JobStoreProvider } from "@/lib/job-store";
+import { ToastProvider } from "@/components/ui/toast";
 import { KanbanBoard } from "@/components/kanban-board";
 
 export default function Home() {
   return (
-    <JobStoreProvider>
-      <KanbanBoard />
-    </JobStoreProvider>
+    <ToastProvider>
+      <JobStoreProvider>
+        <KanbanBoard />
+      </JobStoreProvider>
+    </ToastProvider>
   );
 }
