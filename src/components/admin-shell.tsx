@@ -6,8 +6,9 @@ import { TopContextBar } from "@/components/top-context-bar";
 import { JobStage, useJobStore } from "@/lib/job-store";
 import { Database, ShieldCheck, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
+import { ApplicationsTable } from "@/components/applications-table";
+import { JobDetailSheet } from "@/components/job-detail-sheet";
 
 const SIDEBAR_STORAGE_KEY = "jobclippy_sidebar_collapsed_v1";
 
@@ -196,50 +197,17 @@ export function AdminShell({
         <main className="flex-1 flex flex-col min-w-0">
           {activeView === "board" && children}
 
-          {/* Table View Placeholder */}
+          {/* Interactive Applications Table View */}
           {activeView === "table" && (
-            <div data-testid="table-view-container" className="p-6 max-w-7xl mx-auto w-full space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-hairline">
-                <div>
-                  <h1 className="text-xl font-medium tracking-tight text-ink">All Applications</h1>
-                  <p className="text-xs text-ink-muted">High-density spreadsheet view of all tracked roles</p>
-                </div>
-                <Badge variant="outline" className="text-xs font-mono">
-                  {jobs.length} Records
-                </Badge>
-              </div>
-
-              <div className="rounded-lg border border-hairline bg-surface-1 overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-surface-2/60 border-b border-hairline text-ink-subtle uppercase tracking-wider font-semibold text-[10px]">
-                    <tr>
-                      <th className="py-2.5 px-4">Title & Role</th>
-                      <th className="py-2.5 px-4">Company</th>
-                      <th className="py-2.5 px-4">Stage</th>
-                      <th className="py-2.5 px-4">Compensation</th>
-                      <th className="py-2.5 px-4">Location</th>
-                      <th className="py-2.5 px-4 text-right">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-hairline">
-                    {jobs.map((job) => (
-                      <tr key={job.id} className="hover:bg-surface-2/40 transition-colors">
-                        <td className="py-3 px-4 font-medium text-ink">{job.title}</td>
-                        <td className="py-3 px-4 text-ink-muted">{job.company}</td>
-                        <td className="py-3 px-4">
-                          <span className="capitalize px-1.5 py-0.5 rounded-xs bg-surface-2 border border-hairline text-[11px] font-mono">
-                            {job.stage}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-ink-muted">{job.salary}</td>
-                        <td className="py-3 px-4 text-ink-muted">{job.location}</td>
-                        <td className="py-3 px-4 text-right font-mono text-ink-subtle">{job.notes?.length || 0}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <>
+              <ApplicationsTable
+                searchQuery={searchQuery}
+                selectedStageFilter={selectedStage}
+                onClearStageFilter={() => onSelectStage(null)}
+                onOpenQuickAdd={onOpenQuickAdd}
+              />
+              <JobDetailSheet />
+            </>
           )}
 
           {/* Analytics View Placeholder */}
