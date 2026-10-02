@@ -18,7 +18,7 @@
 | **Phase 6** | Pipeline Velocity & Funnel Analytics | **Planned** | MVP Week 3 |
 | **Phase 7** | AI Resume Matcher & Skill Gap Analyzer | **Planned** | Premium Layer |
 | **Phase 8** | Interview Workspace & Follow-Up Reminders | **Planned** | Assistant Layer |
-| **Phase 9** | Backend Infrastructure, Auth & Onboarding | **Planned** | MVP Week 4 |
+| **Phase 9** | Backend, Auth & Full Page Suite (Login/Signup/Account) | **Planned** | MVP Week 4 |
 | **Phase 10** | SaaS Monetization, Landing Page & Launch | **Planned** | Launch Week |
 
 **Current Test Health:** 22/22 Playwright E2E tests passing.
@@ -171,25 +171,25 @@
 
 ---
 
-### Phase 9: Backend Infrastructure, Authentication & User Management
+### Phase 9: Backend Infrastructure, Authentication, User Management & Complete Page Suite
+- [ ] **Complete User Pages & Route Inventory**
+  - **`/signup` (Sign Up Page):** Google OAuth, Email/Password registration, input validation, password strength indicator, and terms acceptance.
+  - **`/login` (Sign In Page):** Google OAuth, Email/Password credentials, Magic Link option, "Remember Me", and links to `/forgot-password` and `/signup`.
+  - **`/forgot-password` (Password Recovery Page):** Email input for reset token request, rate-limiting, and success confirmation state.
+  - **`/reset-password` (New Password Page):** Secure token verification and new password confirmation form.
+  - **`/verify-email` (Email Confirmation Page):** Verification status state for magic links and email confirmation links.
+  - **`/onboarding` (Guided Welcome Wizard):** 2-step setup asking for target job roles and work arrangement (remote/hybrid/onsite) before routing to dashboard.
+  - **`/account` & `/settings` (User Account Page):** Personal profile (name, avatar, email), password change form, target salary preferences, and account deletion safeguard.
+  - **`/settings/billing` (Subscription & Billing Portal):** Current tier status (Free vs Pro), payment methods, and invoice history via Stripe.
+  - **`/privacy` & `/terms` (Legal & Compliance Pages):** Privacy Policy and Terms of Service (mandatory for Google OAuth verification and Chrome Web Store publication).
 - [ ] **Database Schema & ORM Setup**
   - PostgreSQL / Supabase schema (Users, Jobs, Stages, Skills, Notes, Activities).
   - Row Level Security (RLS) policies ensuring users only query and mutate their own opportunities.
-- [ ] **Authentication System (Login & Sign Up)**
-  - Google OAuth integration ("Continue with Google").
-  - Magic Link / Email & Password sign-up and login flows.
-  - Session handling, JWT/refresh tokens, and protected dashboard middleware.
-  - Password reset and account verification workflows.
+- [ ] **Authentication Middleware & Session Management**
+  - Next.js Edge Middleware route guarding (`/dashboard`, `/account`, `/settings` require authenticated session).
+  - Secure HTTP-only cookies, JWT rotation, and session invalidation.
 - [ ] **Extension-to-Backend Authentication Bridge**
   - Personal API token / session sharing so the Chrome Extension clips jobs straight into the authenticated user's cloud account.
-- [ ] **User Onboarding Flow (Fast 2-Step)**
-  - Step 1: Target role selector (Software Engineering, Design, Product, Marketing, Sales, Data, etc.).
-  - Step 2: Preferred work arrangement (Remote, Hybrid, On-site, Flexible).
-  - Option to start with curated seed opportunities or an empty workspace.
-  - Instant transition into the personalized dashboard.
-- [ ] **User Profile & Account Settings**
-  - Profile preferences (target compensation range, preferred locations).
-  - Account security (change email, export all account data, delete account).
 
 ---
 
