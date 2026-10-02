@@ -18,8 +18,8 @@
 | **Phase 6** | Pipeline Velocity & Funnel Analytics | **Planned** | MVP Week 3 |
 | **Phase 7** | AI Resume Matcher & Skill Gap Analyzer | **Planned** | Premium Layer |
 | **Phase 8** | Interview Workspace & Follow-Up Reminders | **Planned** | Assistant Layer |
-| **Phase 9** | Cloud Sync, Auth & Stripe Monetization | **Planned** | MVP Week 4 |
-| **Phase 10** | Public Landing Page & Onboarding | **Planned** | Launch Week |
+| **Phase 9** | Backend Infrastructure, Auth & Onboarding | **Planned** | MVP Week 4 |
+| **Phase 10** | SaaS Monetization, Landing Page & Launch | **Planned** | Launch Week |
 
 **Current Test Health:** 22/22 Playwright E2E tests passing.
 
@@ -171,31 +171,40 @@
 
 ---
 
-### Phase 9: Cloud Sync, Auth & SaaS Billing
-- [ ] **User Authentication**
-  - Google OAuth and magic link authentication.
-  - Personal encrypted job repository.
-- [ ] **Cloud Database Persistence**
-  - Real-time cloud sync across desktop browser and extension.
-  - Offline-first cache with optimistic updates.
-- [ ] **Tier Management & Stripe Checkout**
-  - Free Tier enforcement (up to 15 active jobs).
-  - Premium Tier ($9-$14/mo) with unlimited jobs and advanced AI features.
-  - Billing portal and subscription status in Settings.
+### Phase 9: Backend Infrastructure, Authentication & User Management
+- [ ] **Database Schema & ORM Setup**
+  - PostgreSQL / Supabase schema (Users, Jobs, Stages, Skills, Notes, Activities).
+  - Row Level Security (RLS) policies ensuring users only query and mutate their own opportunities.
+- [ ] **Authentication System (Login & Sign Up)**
+  - Google OAuth integration ("Continue with Google").
+  - Magic Link / Email & Password sign-up and login flows.
+  - Session handling, JWT/refresh tokens, and protected dashboard middleware.
+  - Password reset and account verification workflows.
+- [ ] **Extension-to-Backend Authentication Bridge**
+  - Personal API token / session sharing so the Chrome Extension clips jobs straight into the authenticated user's cloud account.
+- [ ] **User Onboarding Flow (Fast 2-Step)**
+  - Step 1: Target role selector (Software Engineering, Design, Product, Marketing, Sales, Data, etc.).
+  - Step 2: Preferred work arrangement (Remote, Hybrid, On-site, Flexible).
+  - Option to start with curated seed opportunities or an empty workspace.
+  - Instant transition into the personalized dashboard.
+- [ ] **User Profile & Account Settings**
+  - Profile preferences (target compensation range, preferred locations).
+  - Account security (change email, export all account data, delete account).
 
 ---
 
-### Phase 10: Marketing Landing Page & Public Launch
-- [ ] **High-Converting SaaS Landing Page**
-  - Hero section with live interactive mini-Kanban demo.
-  - Feature showcase (Universal Clipper, High-Density Table, AI Resume Matcher).
-  - Clear pricing tier comparison table.
-- [ ] **Onboarding Flow**
-  - Role preference selector (Engineering, Design, Product, etc.).
-  - Work style preference (Remote, Hybrid, On-site).
-  - Immediate redirect to populated or custom board.
-- [ ] **SEO & Web Performance**
-  - OpenGraph social cards, structured JSON-LD schemas, 100 Lighthouse performance.
+### Phase 10: SaaS Monetization, Landing Page & Public Launch
+- [ ] **Subscription & Tier Management (Stripe)**
+  - Free Tier limits enforcement (up to 15 active jobs, basic clipper).
+  - Premium Tier ($9–$14/month) checkout via Stripe Customer Portal.
+  - Unlimited active jobs, AI resume matching, and deep analytics unlocks.
+- [ ] **Public SaaS Marketing Landing Page**
+  - Hero section featuring value proposition and interactive mini-board demonstration.
+  - Feature highlights (One-Click Clipper, High-Density Table, Heuristic Parser).
+  - Transparent pricing table and FAQ section.
+- [ ] **SEO, Social Cards & Launch Readiness**
+  - OpenGraph / Twitter preview cards and metadata.
+  - Lighthouse performance & accessibility score of 95+.
 
 ---
 
