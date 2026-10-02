@@ -7,3 +7,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# JobClippy Project Rules
+
+## Mandatory Roadmap Tracking
+- Always inspect `ROADMAP.md` at the start of any planning or implementation task to check overall app progress.
+- Always update `ROADMAP.md` immediately upon completing any new feature or task.
+- Keep all links in `ROADMAP.md` relative to the repository root.
