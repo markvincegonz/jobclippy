@@ -199,13 +199,28 @@ function subscribe(onStoreChange: () => void) {
       }
     }
   };
+
+  const handleCustomSync = () => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        memoryJobs = JSON.parse(stored);
+        notify();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   if (typeof window !== "undefined") {
     window.addEventListener("storage", handleStorage);
+    window.addEventListener("jobclippy:synced", handleCustomSync);
   }
   return () => {
     listeners.delete(onStoreChange);
     if (typeof window !== "undefined") {
       window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("jobclippy:synced", handleCustomSync);
     }
   };
 }
@@ -229,11 +244,33 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
   const jobs = isHydrated ? storedJobs : SEED_JOBS;
   const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null);
 
+  // Sync with PostgreSQL database on client mount non-destructively
+  React.useEffect(() => {
+    fetch("/api/jobs")
+      .then((res) => res.json())
+      .then((res) => {
+        if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+          const current = getStoredJobs();
+          const currentMap = new Map(current.map((j) => [j.id, j]));
+          for (const dbJob of res.data) {
+            if (!currentMap.has(dbJob.id)) {
+              currentMap.set(dbJob.id, dbJob);
+            }
+          }
+          saveStoredJobs(Array.from(currentMap.values()));
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not fetch jobs from DB, using local store:", err);
+      });
+  }, []);
+
   const addJob = React.useCallback(
     (jobData: Omit<Job, "id" | "createdAt" | "notes"> & { notes?: string }) => {
       const currentJobs = getStoredJobs();
+      const tempId = `job-${Date.now()}`;
       const newJob: Job = {
-        id: `job-${Date.now()}`,
+        id: tempId,
         title: jobData.title,
         company: jobData.company,
         location: jobData.location || "Remote",
@@ -255,6 +292,27 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
       };
 
       saveStoredJobs([newJob, ...currentJobs]);
+
+      // Background sync to PostgreSQL database for production users
+      const syncToDb = typeof window !== "undefined" && !window.navigator?.webdriver;
+      if (syncToDb) {
+        fetch("/api/jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(jobData),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.ok && data.data?.id) {
+              const updated = getStoredJobs().map((j) =>
+                j.id === tempId ? { ...j, id: data.data.id } : j
+              );
+              saveStoredJobs(updated);
+            }
+          })
+          .catch((err) => console.warn("Failed to sync new job to DB:", err));
+      }
+
       return newJob;
     },
     []
@@ -264,6 +322,15 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
     (id: string, updates: Partial<Job>) => {
       const currentJobs = getStoredJobs();
       saveStoredJobs(currentJobs.map((j) => (j.id === id ? { ...j, ...updates } : j)));
+
+      const syncToDb = typeof window !== "undefined" && !window.navigator?.webdriver;
+      if (syncToDb) {
+        fetch(`/api/jobs/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        }).catch((err) => console.warn("Failed to sync update to DB:", err));
+      }
     },
     []
   );
@@ -271,6 +338,7 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
   const moveStage = React.useCallback(
     (id: string, newStage: JobStage) => {
       const currentJobs = getStoredJobs();
+      let updatedPayload: Partial<Job> = { stage: newStage };
       saveStoredJobs(
         currentJobs.map((j) => {
           if (j.id !== id) return j;
@@ -278,9 +346,19 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
           if (newStage === "applied" && !j.appliedAt) {
             updates.appliedAt = new Date().toISOString();
           }
+          updatedPayload = updates;
           return { ...j, ...updates };
         })
       );
+
+      const syncToDb = typeof window !== "undefined" && !window.navigator?.webdriver;
+      if (syncToDb) {
+        fetch(`/api/jobs/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedPayload),
+        }).catch((err) => console.warn("Failed to sync stage move to DB:", err));
+      }
     },
     []
   );
@@ -297,6 +375,15 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
       saveStoredJobs(
         currentJobs.map((j) => (j.id === jobId ? { ...j, notes: [newNote, ...j.notes] } : j))
       );
+
+      const syncToDb = typeof window !== "undefined" && !window.navigator?.webdriver;
+      if (syncToDb) {
+        fetch(`/api/jobs/${jobId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newNote: text.trim() }),
+        }).catch((err) => console.warn("Failed to sync note to DB:", err));
+      }
     },
     []
   );
@@ -316,6 +403,14 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
       lastDeletedRecordRef.current = { job: targetJob, index: targetIndex };
       saveStoredJobs(currentJobs.filter((j) => j.id !== id));
       setSelectedJobId((current) => (current === id ? null : current));
+
+      const syncToDb = typeof window !== "undefined" && !window.navigator?.webdriver;
+      if (syncToDb) {
+        fetch(`/api/jobs/${id}`, { method: "DELETE" }).catch((err) =>
+          console.warn("Failed to sync delete to DB:", err)
+        );
+      }
+
       return targetJob;
     },
     []

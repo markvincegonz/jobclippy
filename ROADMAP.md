@@ -14,14 +14,15 @@
 | **Phase 2** | Core Kanban Board & Job Lifecycle | **Completed** (100%) | [job-board](openspec/specs/job-board/spec.md), [smart-extractor](openspec/specs/smart-extractor/spec.md) |
 | **Phase 3** | Admin Shell & Power Navigation | **Completed** (100%) | [admin-navigation](openspec/specs/admin-navigation/spec.md) |
 | **Phase 4** | High-Density Interactive Applications Table | **Completed** (100%) | [applications-table](openspec/specs/applications-table/spec.md) |
-| **Phase 5** | Browser Extension (MV3 Universal Clipper) | **Planned / Ready to Start** | MVP Week 2 |
-| **Phase 6** | Pipeline Velocity & Funnel Analytics | **Planned** | MVP Week 3 |
-| **Phase 7** | AI Resume Matcher & Skill Gap Analyzer | **Planned** | Premium Layer |
-| **Phase 8** | Interview Workspace & Follow-Up Reminders | **Planned** | Assistant Layer |
-| **Phase 9** | Backend, Auth & Full Page Suite (Login/Signup/Account) | **Planned** | MVP Week 4 |
-| **Phase 10** | SaaS Monetization, Landing Page & Launch | **Planned** | Launch Week |
+| **Phase 5** | Browser Extension (MV3 Universal Clipper) | **Completed** (100%) | [browser-extension](openspec/changes/browser-extension-clipper/specs/browser-extension/spec.md), [extension-test](tests/browser-extension.spec.ts) |
+| **Phase 6** | Dockerized PostgreSQL & Prisma Backend | **Completed** (100%) | [database-persistence](openspec/changes/docker-postgres-prisma/specs/database-persistence/spec.md), [jobs-database-test](tests/jobs-database.spec.ts) |
+| **Phase 7** | Pipeline Velocity & Funnel Analytics | **Planned** | MVP Week 3 |
+| **Phase 8** | AI Resume Matcher & Skill Gap Analyzer | **Planned** | Premium Layer |
+| **Phase 9** | Interview Workspace & Follow-Up Reminders | **Planned** | Assistant Layer |
+| **Phase 10** | Backend, Auth & Full Page Suite (Login/Signup/Account) | **Planned** | MVP Week 4 |
+| **Phase 11** | SaaS Monetization, Landing Page & Launch | **Planned** | Launch Week |
 
-**Current Test Health:** 22/22 Playwright E2E tests passing.
+**Current Test Health:** 43/43 Playwright E2E tests passing.
 
 ---
 
@@ -110,25 +111,50 @@
 
 ---
 
-### Phase 5: Browser Extension (MV3 Universal Clipper) — Next Phase
-- [ ] **Manifest V3 Chrome Extension Package (`extension/`)**
-  - Background service worker, popup HTML/CSS/JS, and manifest declaration.
-- [ ] **Site-Specific Job DOM Parsers**
+### Phase 5: Browser Extension (MV3 Universal Clipper)
+- [x] **Manifest V3 Chrome Extension Package (`extension/`)**
+  - Background service worker, popup HTML/CSS/JS, top-frame isolation, and manifest declaration.
+- [x] **Site-Specific Job DOM Parsers**
   - LinkedIn Job Posting extractor (Title, Company, Location, Description, Salary).
-  - Indeed Job Posting extractor.
-- [ ] **Universal "Highlight-to-Clip" Fallback**
+  - Indeed Job Posting extractor with two-pane preview scoping (`#jobsearch-ViewjobPaneWrapper`), international currency recognition (`PHP`, `₱`, `£`, `€`, `₹`, `$`), and direct viewjob URL resolution.
+  - Safe description normalization avoiding destructive regex cuts on legitimate requirements.
+- [x] **Universal "Highlight-to-Clip" Fallback**
   - Right-click context menu "Save Highlighted Job to JobClippy".
   - Content script extraction of user-highlighted text on any company career page.
-- [ ] **Quick Popup Interface**
-  - Pre-filled preview card with detected attributes.
-  - One-click "[ Save Job ]" button with instant checkmark feedback.
-- [ ] **Data Sync Bridge**
-  - Web message / Chrome Storage sync to JobClippy web application.
-  - Optional clip import JSON endpoint / direct local store connection.
+- [x] **Quick Popup Interface**
+  - Pre-filled preview card with detected attributes, editable tags, stage selector, and notes.
+  - One-click "[ Save Job ]" button with instant checkmark feedback and mascot animation.
+- [x] **Data Sync Bridge**
+  - Web message / Chrome Storage sync to JobClippy web application (`jobclippy_jobs_v1`).
+  - Instant reactive store update without requiring page reload.
+- [x] **AI-Powered 3-Tier Extraction Pipeline**
+  - Layer 1: Client DOM pre-cleaning and token budgeting (~1,200 tokens) with optimistic preview.
+  - Layer 2: Canonical URL normalization, SHA-256 hashing, and persistent extraction cache.
+  - Layer 3: Server-side Next.js API route (`/api/extract`) with strict JSON schema LLM extraction and graceful fallback.
 
 ---
 
-### Phase 6: Pipeline Velocity & Funnel Analytics View
+### Phase 6: Dockerized PostgreSQL & Prisma Backend
+- [x] **Docker Compose PostgreSQL 16 Service**
+  - Isolated `postgres:16-alpine` container with persistent named volume (`jobclippy_pgdata`).
+  - Safe port allocation (mapped to `5433:5432`) avoiding conflicts with host PostgreSQL daemons.
+  - Health check verification script.
+- [x] **Prisma ORM & Relational Schema**
+  - Strongly typed models: `Job`, `JobNote`, and `ExtractionCache`.
+  - Automated database push and migration workflows.
+  - Curated opportunity seed script (`prisma/seed.ts`).
+- [x] **Jobs REST API Engine**
+  - Full CRUD operations via `/api/jobs` and `/api/jobs/[id]`.
+  - Cascading deletion for personal notes.
+  - Two-way optimistic sync in web app store (`src/lib/job-store.tsx`) preserving instantaneous UI feedback.
+- [x] **Server-Side DeepSeek AI & Extension Key Cleanup**
+  - Elimination of client-side key drawer in extension popup for frictionless UX.
+  - Server environment key enforcement (`.env.local`).
+  - DeepSeek `json_object` format support (`deepseek-chat`).
+
+---
+
+### Phase 7: Pipeline Velocity & Funnel Analytics View
 - [ ] **Interactive Conversion Funnel**
   - Visual funnel graph: Wishlist -> Applied -> Screening -> Interviewing -> Offer.
   - Conversion percentage calculation between each stage.
@@ -144,7 +170,7 @@
 
 ---
 
-### Phase 7: AI Resume Matcher & Skill Gap Analyzer
+### Phase 8: AI Resume Matcher & Skill Gap Analyzer
 - [ ] **Resume Ingestion & Parsing**
   - Upload PDF/DOCX or paste resume raw text in Command Center Settings.
   - Extraction of candidate's skills, experience, and keywords into local profile.
@@ -158,7 +184,7 @@
 
 ---
 
-### Phase 8: Interview Workspace & Follow-Up Reminders
+### Phase 9: Interview Workspace & Follow-Up Reminders
 - [ ] **Interview Scheduler & Calendar Export**
   - Date and time picker for upcoming interviews in `JobDetailSheet`.
   - One-click `.ics` calendar file download for Google Calendar / Apple Calendar.
@@ -171,7 +197,7 @@
 
 ---
 
-### Phase 9: Backend Infrastructure, Authentication, User Management & Complete Page Suite
+### Phase 10: Multi-Tenant Cloud Auth, User Management & Complete Page Suite
 - [ ] **Complete User Pages & Route Inventory**
   - **`/signup` (Sign Up Page):** Google OAuth, Email/Password registration, input validation, password strength indicator, and terms acceptance.
   - **`/login` (Sign In Page):** Google OAuth, Email/Password credentials, Magic Link option, "Remember Me", and links to `/forgot-password` and `/signup`.
@@ -193,7 +219,7 @@
 
 ---
 
-### Phase 10: SaaS Monetization, Landing Page & Public Launch
+### Phase 11: SaaS Monetization, Landing Page & Public Launch
 - [ ] **Subscription & Tier Management (Stripe)**
   - Free Tier limits enforcement (up to 15 active jobs, basic clipper).
   - Premium Tier ($9–$14/month) checkout via Stripe Customer Portal.

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JobClippy — Universal Job Clipper</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-wrapper">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="brand">
+        <svg class="mascot-svg" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M13 23V9.5C13 6.46 15.46 4 18.5 4C21.54 4 24 6.46 24 9.5V26.5C24 30.64 20.64 34 16.5 34C12.36 34 9 30.64 9 26.5V13" stroke="#5E6AD2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M17 13.5V24C17 25.1 17.9 26 19 26C20.1 26 21 25.1 21 24V11" stroke="#828fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="14" cy="12" r="2" fill="#ffffff"/>
+          <circle cx="14.5" cy="11.8" r="1.1" fill="#08090a"/>
+          <circle cx="21" cy="12" r="2" fill="#ffffff"/>
+          <circle cx="21.5" cy="11.8" r="1.1" fill="#08090a"/>
+          <path d="M15.5 16.5C16.5 17.5 18.5 17.5 19.5 16.5" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        <span class="brand-name">JobClippy</span>
+      </div>
+      <div class="header-right">
+        <div id="status-pill" class="status-pill status-detected">
+          <span class="dot"></span>
+          <span id="status-text">Detecting...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Card Body -->
+    <main class="card-body">
+      <!-- Title Input -->
+      <div class="field-group">
+        <label for="job-title" class="field-label sr-only">Job Title</label>
+        <input type="text" id="job-title" class="title-input" placeholder="Job Title (e.g. Frontend Engineer)" spellcheck="false" />
+      </div>
+
+      <!-- Company Row -->
+      <div class="company-row">
+        <div class="company-icon">🏢</div>
+        <input type="text" id="job-company" class="company-input" placeholder="Company Name" spellcheck="false" />
+      </div>
+
+      <!-- Meta Chips (Location & Salary) -->
+      <div class="meta-row">
+        <div class="meta-chip">
+          <span class="chip-icon">📍</span>
+          <input type="text" id="job-location" class="chip-input" placeholder="Location" value="Remote" />
+        </div>
+        <div class="meta-chip">
+          <span class="chip-icon">💰</span>
+          <input type="text" id="job-salary" class="chip-input" placeholder="Salary" value="Salary not listed" />
+        </div>
+      </div>
+
+      <!-- Skills Section -->
+      <div class="section-group">
+        <div class="section-header">
+          <span class="section-title">Skills</span>
+          <span class="section-hint">click to remove</span>
+        </div>
+        <div id="skills-container" class="skills-container">
+          <!-- Dynamically populated skill tags -->
+        </div>
+        <div class="add-skill-row">
+          <input type="text" id="new-skill-input" class="new-skill-input" placeholder="+ Add skill (press Enter)..." />
+        </div>
+      </div>
+
+      <div class="hairline-divider"></div>
+
+      <!-- Stage Selector Dropdown -->
+      <div class="form-row">
+        <label for="job-stage" class="form-label">Pipeline Stage</label>
+        <select id="job-stage" class="stage-select">
+          <option value="wishlist" selected>Wishlist</option>
+          <option value="applied">Applied</option>
+          <option value="interviewing">Interviewing</option>
+          <option value="offer">Offer</option>
+          <option value="archived">Archived</option>
+        </select>
+      </div>
+
+      <!-- Personal Quick Note -->
+      <div class="form-row">
+        <label for="job-note" class="form-label">Quick Personal Note</label>
+        <textarea id="job-note" class="note-textarea" rows="2" placeholder="Add quick note (e.g. referral from Alex)..."></textarea>
+      </div>
+
+      <!-- Primary Action Button -->
+      <button id="clip-btn" class="clip-button">
+        <span id="btn-icon" class="btn-icon">⚡</span>
+        <span id="btn-label" class="btn-label">[ Clip to JobClippy ]</span>
+      </button>
+
+      <!-- Feedback Banner -->
+      <div id="feedback-banner" class="feedback-banner hidden">
+        <span class="feedback-icon">✓</span>
+        <span id="feedback-msg">Saved to your JobClippy pipeline!</span>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="popup-footer">
+      <a href="http://localhost:3000" target="_blank" id="open-board-link" class="footer-link">
+        Open JobClippy Dashboard ↗
+      </a>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

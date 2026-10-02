@@ -1,0 +1,62 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum JobStage {
+  wishlist
+  applied
+  interviewing
+  offer
+  archived
+}
+
+model Job {
+  id            String     @id @default(cuid())
+  title         String
+  company       String
+  location      String?
+  salary        String?
+  stage         JobStage   @default(wishlist)
+  skills        String[]   @default([])
+  description   String     @db.Text
+  url           String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  appliedAt     DateTime?
+  interviewDate DateTime?
+  notes         JobNote[]
+
+  @@index([stage])
+  @@index([company])
+  @@map("jobs")
+}
+
+model JobNote {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
+  @@map("job_notes")
+}
+
+model ExtractionCache {
+  urlHash       String   @id
+  canonicalUrl  String   @db.Text
+  domain        String
+  extractedData Json
+  modelUsed     String
+  hitCount      Int      @default(1)
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime
+
+  @@index([expiresAt])
+  @@map("extraction_cache")
+}

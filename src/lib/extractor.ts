@@ -9,6 +9,7 @@ export interface ExtractedJobData {
 }
 
 const COMMON_SKILLS = [
+  // Engineering & Tech
   "React",
   "Next.js",
   "TypeScript",
@@ -31,9 +32,6 @@ const COMMON_SKILLS = [
   "GraphQL",
   "REST APIs",
   "Tailwind CSS",
-  "Figma",
-  "Product Design",
-  "UI/UX",
   "Git",
   "CI/CD",
   "Agile",
@@ -49,26 +47,57 @@ const COMMON_SKILLS = [
   "Prompt Engineering",
   "LLMs",
   "PyTorch",
+  // Design, Video Editing & Creative
+  "Figma",
+  "Product Design",
+  "UI/UX",
+  "Graphic Design",
+  "Video Editing",
+  "Premiere Pro",
+  "After Effects",
+  "Final Cut Pro",
+  "DaVinci Resolve",
+  "CapCut",
+  "Photoshop",
+  "Illustrator",
+  "Motion Graphics",
+  "Animation",
+  "Storytelling",
+  "Audio Editing",
+  "Color Grading",
+  // Marketing & Operations
+  "Social Media",
+  "Content Creation",
+  "Copywriting",
+  "SEO",
+  "E-Commerce",
+  "Shopify",
+  "Content Strategy",
+  "Email Marketing",
+  "Virtual Assistant",
 ];
 
 export function extractSalary(text: string): string {
   if (!text) return "Salary not listed";
 
-  // Regex patterns for various salary representations:
-  // e.g., $120,000 - $150,000, $120k-$150k, $80 - $120 / hr, $140,000 to $180,000
   const salaryRegex =
-    /(\$\s*\d{1,3}(?:,\d{3})*(?:\.\d{2})?\s*[kK]?\s*(?:-|–|to)\s*\$?\s*\d{1,3}(?:,\d{3})*(?:\.\d{2})?\s*[kK]?(?:\s*(?:\/|\bper\b)\s*(?:yr|year|annual|annually|hr|hour))?|\$\s*\d{1,3}(?:,\d{3})*\s*[kK]?(?:\s*(?:\/|\bper\b)\s*(?:yr|year|annual|annually|hr|hour))?)/i;
+    /(?:(?:up\s+to|from)\s+)?((?:PHP|₱|\$|£|€|₹|¥|CAD|AUD|SGD|USD)\s*\d{1,3}(?:,\d{3})*(?:\.\d{2})?\s*[kK]?(?:\s*(?:-|–|to)\s*(?:PHP|₱|\$|£|€|₹|¥|CAD|AUD|SGD|USD)?\s*\d{1,3}(?:,\d{3})*(?:\.\d{2})?\s*[kK]?)?(?:\s*(?:\/|\bper\b|\ba\b)\s*(?:monthly|month|mo|annually|annual|year|yr|hourly|hour|hr|daily|day|weekly|week|wk))?)/i;
 
   const match = text.match(salaryRegex);
   if (!match) return "Salary not listed";
 
   let raw = match[0].trim();
-  // Standardize format:
-  // e.g. "$120,000 - $150,000" -> "$120K–$150K"
   raw = raw
     .replace(/\s+/g, " ")
     .replace(/\s*-\s*|\s*–\s*|\s+to\s+/i, "–")
-    .replace(/(\$\d+),000/g, "$1K");
+    .replace(/(\$\d+),000/g, "$1K")
+    .replace(/(PHP\s*\d+),000/gi, "$1K")
+    .replace(/(₱\s*\d+),000/gi, "$1K")
+    .replace(/(£\s*\d+),000/gi, "$1K")
+    .replace(/(€\s*\d+),000/gi, "$1K")
+    .replace(/\s*(?:\/|\bper\b|\ba\b)\s*(?:annually|annual|year|yr)/i, "")
+    .replace(/\s*(?:\/|\bper\b|\ba\b)\s*(?:monthly|month|mo)/i, "/mo")
+    .replace(/\s*(?:\/|\bper\b|\ba\b)\s*(?:hourly|hour|hr)/i, "/hr");
 
   return raw;
 }
@@ -84,6 +113,23 @@ export function extractSkills(text: string): string[] {
     const regex = new RegExp(`(?:\\b|[^a-zA-Z0-9])${escaped}(?:\\b|[^a-zA-Z0-9])`, "i");
     if (regex.test(text)) {
       foundSkills.add(skill);
+    }
+  }
+
+  const SKILL_ALIASES = [
+    { regex: /\bvideo\s+edit(?:or|ing|s)?\b/i, skill: "Video Editing" },
+    { regex: /\bgraphic\s+design(?:er|ing)?\b/i, skill: "Graphic Design" },
+    { regex: /\bcontent\s+creat(?:or|ion|ing)\b/i, skill: "Content Creation" },
+    { regex: /\bcopywrit(?:er|ing)\b/i, skill: "Copywriting" },
+    { regex: /\bfront(?:-| )?end\b/i, skill: "Frontend" },
+    { regex: /\bback(?:-| )?end\b/i, skill: "Backend" },
+    { regex: /\bfull(?:-| )?stack\b/i, skill: "Full Stack" },
+    { regex: /\bmachine\s+learning\b/i, skill: "Machine Learning" },
+  ];
+
+  for (const alias of SKILL_ALIASES) {
+    if (alias.regex.test(text)) {
+      foundSkills.add(alias.skill);
     }
   }
 

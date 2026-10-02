@@ -84,7 +84,7 @@ export function JobDetailSheet() {
 
   return (
     <Sheet open={Boolean(selectedJob)} onOpenChange={(open) => !open && setSelectedJobId(null)}>
-      <div className="space-y-6">
+      <div data-testid="job-detail-sheet" className="space-y-6">
         {/* Header with Title and Company */}
         <SheetHeader className="relative pr-8 border-b border-hairline pb-4">
           <SheetClose onClick={() => setSelectedJobId(null)} />
