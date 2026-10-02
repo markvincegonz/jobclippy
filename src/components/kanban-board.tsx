@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  Search,
   Plus,
   Sparkles,
   TrendingUp,
@@ -11,10 +10,10 @@ import {
   Calendar,
   Layers,
   RotateCcw,
+  X,
 } from "lucide-react";
 import { JobCard } from "@/components/job-card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -84,12 +83,40 @@ const EMPTY_STATE_MESSAGES: Record<JobStage, { headline: string; subtitle: strin
   },
 };
 
-export function KanbanBoard() {
+export interface KanbanBoardProps {
+  externalSearchQuery?: string;
+  onSearchChange?: (query: string) => void;
+  selectedStageFilter?: JobStage | null;
+  onClearStageFilter?: () => void;
+  hideHeader?: boolean;
+  isAddOpen?: boolean;
+  onOpenChangeAdd?: (open: boolean) => void;
+  isResetConfirmOpen?: boolean;
+  onOpenChangeResetConfirm?: (open: boolean) => void;
+}
+
+export function KanbanBoard({
+  externalSearchQuery,
+  selectedStageFilter,
+  onClearStageFilter,
+  hideHeader = false,
+  isAddOpen: externalIsAddOpen,
+  onOpenChangeAdd,
+  isResetConfirmOpen: externalIsResetConfirmOpen,
+  onOpenChangeResetConfirm,
+}: KanbanBoardProps = {}) {
   const { jobs, resetToSeeds, moveStage } = useJobStore();
-  const [searchQuery, setSearchQuery] = React.useState("");
+  const searchQuery = externalSearchQuery || "";
+
   const [selectedSkill, setSelectedSkill] = React.useState<string | null>(null);
-  const [isAddOpen, setIsAddOpen] = React.useState(false);
-  const [isResetConfirmOpen, setIsResetConfirmOpen] = React.useState(false);
+  const [internalIsAddOpen, setInternalIsAddOpen] = React.useState(false);
+  const isAddOpen = externalIsAddOpen !== undefined ? externalIsAddOpen : internalIsAddOpen;
+  const setIsAddOpen = onOpenChangeAdd || setInternalIsAddOpen;
+
+  const [internalIsResetConfirmOpen, setInternalIsResetConfirmOpen] = React.useState(false);
+  const isResetConfirmOpen = externalIsResetConfirmOpen !== undefined ? externalIsResetConfirmOpen : internalIsResetConfirmOpen;
+  const setIsResetConfirmOpen = onOpenChangeResetConfirm || setInternalIsResetConfirmOpen;
+
   const [draggingJobId, setDraggingJobId] = React.useState<string | null>(null);
   const [dragOverColId, setDragOverColId] = React.useState<JobStage | null>(null);
   const [isOfferCelebrationActive, setIsOfferCelebrationActive] = React.useState(false);
@@ -180,10 +207,23 @@ export function KanbanBoard() {
   const interviewCount = jobs.filter((j) => j.stage === "interviewing").length;
   const offerCount = jobs.filter((j) => j.stage === "offer").length;
 
+  const displayedColumns = COLUMNS;
+
+  // Auto-scroll target column into view when stage shortcut is clicked
+  React.useEffect(() => {
+    if (selectedStageFilter) {
+      const colEl = document.querySelector(`[data-testid="column-${selectedStageFilter}"]`);
+      if (colEl) {
+        colEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      }
+    }
+  }, [selectedStageFilter]);
+
   return (
-    <div className="flex flex-col min-h-screen bg-canvas text-ink transition-colors duration-150">
-      {/* Top Header — 56px Linear Top Nav */}
-      <header className="sticky top-0 z-30 h-14 border-b border-hairline bg-canvas/90 backdrop-blur-md px-6 flex items-center justify-between shadow-none">
+    <div className={cn("flex flex-col min-h-screen bg-canvas text-ink transition-colors duration-150", hideHeader && "min-h-0")}>
+      {/* Top Header — 56px Linear Top Nav (only rendered when standalone) */}
+      {!hideHeader && (
+        <header className="sticky top-0 z-30 h-14 border-b border-hairline bg-canvas/90 backdrop-blur-md px-6 flex items-center justify-between shadow-none">
         <div className="flex items-center gap-3">
           <div
             className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-2 border border-hairline text-primary surface-lift group cursor-pointer hover:border-primary/50 transition-colors"
@@ -229,6 +269,7 @@ export function KanbanBoard() {
           <ThemeToggle />
         </div>
       </header>
+      )}
 
       {/* Main Container */}
       <main className="flex-1 p-6 space-y-6 max-w-[1600px] w-full mx-auto">
@@ -275,18 +316,31 @@ export function KanbanBoard() {
           </div>
         </section>
 
-        {/* Filter and Search Toolbar */}
-        <section className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-surface-1 border border-hairline rounded-lg p-3 surface-lift shadow-none">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-ink-subtle" />
-            <Input
-              id="job-search-input"
-              data-testid="job-search-input"
-              placeholder="Search title, company, skills..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 text-xs h-8 bg-surface-1 border-hairline text-ink"
-            />
+        {/* Filter and Skill Toolbar */}
+        <section className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-surface-1 border border-hairline rounded-lg px-4 py-2.5 surface-lift shadow-none">
+          <div className="flex items-center gap-2">
+            {selectedStageFilter ? (
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-surface-2 border border-hairline text-xs font-medium text-primary">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="capitalize">{selectedStageFilter} stage spotlighted</span>
+                {onClearStageFilter && (
+                  <button
+                    type="button"
+                    onClick={onClearStageFilter}
+                    aria-label="Dismiss stage spotlight"
+                    className="hover:text-ink text-ink-muted cursor-pointer"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="text-xs text-ink-muted flex items-center gap-2">
+                <span className="font-medium text-ink">Pipeline Board</span>
+                <span className="text-ink-subtle">·</span>
+                <span className="font-mono text-[11px]">{filteredJobs.length} opportunities visible</span>
+              </div>
+            )}
           </div>
 
           {/* Skill Filter Pills */}
@@ -315,15 +369,18 @@ export function KanbanBoard() {
         </section>
 
         {/* 5-Column Kanban Board */}
-        <section className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-start">
-          {COLUMNS.map((col) => {
+        <section className="grid gap-4 items-start grid-cols-1 md:grid-cols-3 lg:grid-cols-5">
+          {displayedColumns.map((col) => {
             const colJobs = filteredJobs.filter((j) => j.stage === col.id);
             const isDropTarget = dragOverColId === col.id;
+            const isSpotlighted = selectedStageFilter === col.id;
+            const isDimmed = !!selectedStageFilter && !isSpotlighted;
 
             return (
               <div
                 key={col.id}
                 data-testid={`column-${col.id}`}
+                data-spotlight={isSpotlighted ? "true" : undefined}
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = "move";
@@ -342,8 +399,10 @@ export function KanbanBoard() {
                   handleColumnDrop(col.id);
                 }}
                 className={cn(
-                  "flex flex-col rounded-lg border border-hairline bg-surface-1/50 p-3 min-h-[520px] surface-lift shadow-none transition-all duration-150",
-                  isDropTarget && "border-primary/60 bg-surface-2/90 ring-2 ring-primary/20 scale-[1.01]"
+                  "flex flex-col rounded-lg border border-hairline bg-surface-1/50 p-3 min-h-[520px] surface-lift shadow-none transition-all duration-200",
+                  isSpotlighted && "border-primary/70 bg-surface-2/80 ring-1 ring-primary/40 shadow-xs",
+                  isDimmed && "opacity-55 hover:opacity-90",
+                  isDropTarget && "border-primary/80 bg-surface-2/90 ring-2 ring-primary/20 scale-[1.01]"
                 )}
               >
                 {/* Column Header */}
