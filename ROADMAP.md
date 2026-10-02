@@ -10,10 +10,10 @@
 
 | Phase | Category | Status | Specs & Tests |
 | :--- | :--- | :---: | :--- |
-| **Phase 1** | Foundation & Linear Design System | **Completed** (100%) | [design-system](file:///c:/Users/Maku/Documents/GitHub/jobclippy/openspec/specs/design-system/spec.md), [theme-system](file:///c:/Users/Maku/Documents/GitHub/jobclippy/openspec/specs/theme-system/spec.md) |
-| **Phase 2** | Core Kanban Board & Job Lifecycle | **Completed** (100%) | [job-board](file:///c:/Users/Maku/Documents/GitHub/jobclippy/openspec/specs/job-board/spec.md), [smart-extractor](file:///c:/Users/Maku/Documents/GitHub/jobclippy/openspec/specs/smart-extractor/spec.md) |
-| **Phase 3** | Admin Shell & Power Navigation | **Completed** (100%) | [admin-navigation](file:///c:/Users/Maku/Documents/GitHub/jobclippy/openspec/specs/admin-navigation/spec.md) |
-| **Phase 4** | High-Density Interactive Applications Table | **Completed** (100%) | [applications-table](file:///c:/Users/Maku/Documents/GitHub/jobclippy/openspec/specs/applications-table/spec.md) |
+| **Phase 1** | Foundation & Linear Design System | **Completed** (100%) | [design-system](openspec/specs/design-system/spec.md), [theme-system](openspec/specs/theme-system/spec.md) |
+| **Phase 2** | Core Kanban Board & Job Lifecycle | **Completed** (100%) | [job-board](openspec/specs/job-board/spec.md), [smart-extractor](openspec/specs/smart-extractor/spec.md) |
+| **Phase 3** | Admin Shell & Power Navigation | **Completed** (100%) | [admin-navigation](openspec/specs/admin-navigation/spec.md) |
+| **Phase 4** | High-Density Interactive Applications Table | **Completed** (100%) | [applications-table](openspec/specs/applications-table/spec.md) |
 | **Phase 5** | Browser Extension (MV3 Universal Clipper) | **Planned / Ready to Start** | MVP Week 2 |
 | **Phase 6** | Pipeline Velocity & Funnel Analytics | **Planned** | MVP Week 3 |
 | **Phase 7** | AI Resume Matcher & Skill Gap Analyzer | **Planned** | Premium Layer |
