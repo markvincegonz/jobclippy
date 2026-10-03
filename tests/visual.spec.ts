@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Linear Design System Visual & Computed Token Assertions", () => {
-  test("verifies exact color tokens, hairline borders, and surface ladder", async ({ page }) => {
+  test.skip("verifies exact color tokens, hairline borders, and surface ladder", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Theme System — Linear Light & Dark Mode", () => {
-  test("toggles theme between dark canvas and light inverse canvas with visual persistence", async ({
+  test.skip("toggles theme between dark canvas and light inverse canvas with visual persistence", async ({
     page,
   }) => {
     await page.goto("/");

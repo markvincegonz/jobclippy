@@ -22,7 +22,7 @@
 | **Phase 10** | Backend, Auth & Full Page Suite (Login/Signup/Account) | **Planned** | MVP Week 4 |
 | **Phase 11** | SaaS Monetization, Landing Page & Launch | **Planned** | Launch Week |
 
-**Current Test Health:** 52/52 Playwright E2E tests passing.
+**Current Test Health:** 50/52 Playwright E2E tests passing (2 theme-toggle tests skipped in CI).
 
 ---
 
