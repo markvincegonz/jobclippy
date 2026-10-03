@@ -5,9 +5,10 @@ test.describe("Theme System — Linear Light & Dark Mode", () => {
     page,
   }) => {
     await page.goto("/");
+    await page.waitForLoadState("domcontentloaded");
 
     const toggleBtn = page.getByTestId("theme-toggle-btn");
-    await expect(toggleBtn).toBeVisible();
+    await expect(toggleBtn).toBeVisible({ timeout: 10000 });
 
     const body = page.locator("body");
 
@@ -22,11 +23,13 @@ test.describe("Theme System — Linear Light & Dark Mode", () => {
 
     // 3. Verify persistence across page reload
     await page.reload();
+    await page.waitForLoadState("domcontentloaded");
 
     await expect(body).toHaveCSS("background-color", "rgb(255, 255, 255)");
 
     // 4. Toggle back to Dark mode
     const toggleBtnAfterReload = page.getByTestId("theme-toggle-btn");
+    await expect(toggleBtnAfterReload).toBeVisible({ timeout: 10000 });
     await toggleBtnAfterReload.click();
 
     await expect(body).toHaveCSS("background-color", "rgb(1, 1, 2)");

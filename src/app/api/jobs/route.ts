@@ -41,11 +41,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
 
-    if (!body.title || !body.company) {
+    if (!body || typeof body !== "object" || !body.title || !body.company) {
       return NextResponse.json(
-        { ok: false, error: "Title and Company are required" },
+        { ok: false, error: "Title and Company are required in valid JSON body" },
         { status: 400, headers: CORS_HEADERS }
       );
     }

@@ -56,7 +56,14 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+
+    if (!body || typeof body !== "object") {
+      return NextResponse.json(
+        { ok: false, error: "Invalid JSON body" },
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
 
     const dataToUpdate: Record<string, unknown> = {};
 

@@ -3,9 +3,11 @@ import { test, expect } from "@playwright/test";
 test.describe("Linear Design System Visual & Computed Token Assertions", () => {
   test("verifies exact color tokens, hairline borders, and surface ladder", async ({ page }) => {
     await page.goto("/");
+    await page.waitForLoadState("domcontentloaded");
 
     const body = page.locator("body");
     const toggleBtn = page.getByTestId("theme-toggle-btn");
+    await expect(toggleBtn).toBeVisible({ timeout: 10000 });
     const saveJobBtn = page.getByTestId("quick-add-btn");
     const firstCard = page.locator('[data-testid^="job-card-"]').first();
 
