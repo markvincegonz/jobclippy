@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Hardening & Error Safeguards Suite", () => {
+  test.afterAll(async ({ request }) => {
+    await request.post("http://localhost:3000/api/jobs/reset");
+  });
+
   test("deleting a card triggers an Undo toast, and clicking Undo restores the card", async ({
     page,
   }) => {

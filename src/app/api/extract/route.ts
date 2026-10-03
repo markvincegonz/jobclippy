@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { canonicalizeUrl, hashCanonicalUrl } from "@/lib/canonicalize";
-import { getExtractionCache } from "@/lib/cache/file-store";
+import { getExtractionCache } from "@/lib/cache/prisma-store";
 import {
   AiExtractedJob,
   JOB_EXTRACTION_JSON_SCHEMA,
   buildExtractionPrompt,
 } from "@/lib/ai/extractor-schema";
+import fs from "fs";
+import path from "path";
 import { extractSalary, extractSkills, parseJobText } from "@/lib/extractor";
 
 export const runtime = "nodejs";
@@ -45,6 +47,7 @@ export async function POST(req: NextRequest) {
     const cached = await cache.get(urlHash);
     if (cached) {
       await cache.incrementHit(urlHash);
+      cached.hitCount = (cached.hitCount || 1) + 1;
       return NextResponse.json(
         {
           ok: true,
@@ -58,7 +61,25 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Layer 3: AI Extraction (Server Environment Only: DeepSeek -> OpenAI -> Gemini -> Fallback)
-    const deepseekKey = process.env.DEEPSEEK_API_KEY;
+    let deepseekKey = process.env.DEEPSEEK_API_KEY;
+    if (!deepseekKey) {
+      try {
+        for (const envFile of [".env.local", ".env"]) {
+          const envPath = path.resolve(process.cwd(), envFile);
+          if (fs.existsSync(envPath)) {
+            const content = fs.readFileSync(envPath, "utf-8");
+            const match = content.match(/^DEEPSEEK_API_KEY=(.+)$/m);
+            if (match && match[1]?.trim()) {
+              deepseekKey = match[1].trim().replace(/^["']|["']$/g, "");
+              process.env.DEEPSEEK_API_KEY = deepseekKey;
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[extract] Error reading env files:", err);
+      }
+    }
     const openAiKey = process.env.OPENAI_API_KEY;
     const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
@@ -67,7 +88,7 @@ export async function POST(req: NextRequest) {
     let activeProvider = "none";
 
     if (rawText.length >= 20) {
-      const { system, user } = buildExtractionPrompt(rawText, partialFields);
+      const { system, user } = buildExtractionPrompt(rawText, partialFields, rawUrl);
 
       // Branch 1: DeepSeek (deepseek-chat with json_object mode)
       if (deepseekKey) {

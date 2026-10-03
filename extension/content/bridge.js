@@ -57,7 +57,14 @@
 
     // 2. Listen for live clips dispatched while dashboard tab is open
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message.type === "SYNC_CLIPPED_JOBS") {
+      if (message.type === "JOB_PERSISTED_TO_DB") {
+        window.dispatchEvent(
+          new CustomEvent("jobclippy:synced", {
+            detail: { added: 1, job: message.job, source: "database" },
+          })
+        );
+        sendResponse({ success: true });
+      } else if (message.type === "SYNC_CLIPPED_JOBS") {
         const count = syncJobsToLocalStorage(message.jobs);
         sendResponse({ success: true, count });
       }

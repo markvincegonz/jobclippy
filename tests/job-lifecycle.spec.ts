@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Job Hunt Command Center Lifecycle & Component Suite", () => {
+  test.beforeAll(async ({ request }) => {
+    await request.post("http://localhost:3000/api/jobs/reset");
+  });
+
   test("displays Kanban board with 5 columns, metrics, and seed jobs in Linear design", async ({
     page,
   }) => {
@@ -57,7 +61,7 @@ test.describe("Job Hunt Command Center Lifecycle & Component Suite", () => {
 
     // Verify card is added to Wishlist column
     const wishlistColumn = page.getByTestId("column-wishlist");
-    const newCard = wishlistColumn.getByText("Staff Frontend Infrastructure Engineer");
+    const newCard = wishlistColumn.getByText("Staff Frontend Infrastructure Engineer").first();
     await expect(newCard).toBeVisible();
 
     // 3. Open Slide-Over Detail Sheet by clicking the card

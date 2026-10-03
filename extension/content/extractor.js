@@ -60,7 +60,7 @@
     // 2. Remove standard platform trailing footer spam (only at the end of the text)
     cleaned = cleaned
       .replace(/\n\s*(?:Hiring\s+Insights|Report\s+job|Indeed\s+helps\s+people|©\s*\d{4}\s*Indeed)[\s\S]*$/i, "")
-      .replace(/\n\s*(?:Share\s+this\s+job|Save\s+this\s+job|Similar\s+jobs|Explore\s+more\s+jobs)[\s\S]*$/i, "")
+      .replace(/\n\s*(?:Share\s+this\s+job|Save\s+this\s+job|Similar\s+jobs|Explore\s+more\s+jobs|Report\s+this\s+job\s+ad)[\s\S]*$/i, "")
       .replace(/\n\s*Apply\s+(?:on|via)\s+company\s+site\s*$/i, "");
 
     // 3. Remove standalone UI button artifact lines
@@ -75,6 +75,92 @@
 
     cleaned = filtered.join("\n").replace(/\n{3,}/g, "\n\n").trim();
     return cleaned.slice(0, 4000);
+  }
+
+  // Universal Semantic Reading Pane Scorer
+  // Evaluates candidate DOM containers to dynamically isolate the active job details pane on arbitrary multi-pane job boards.
+  function findActiveJobContainer(targetId) {
+    if (typeof document === "undefined" || !document.body) return null;
+
+    const candidates = Array.from(
+      document.querySelectorAll(
+        "main, article, [role='main'], [role='region'], div[class*='detail'], div[class*='pane'], div[class*='content'], section[class*='detail'], div[id*='detail'], div[id*='view']"
+      )
+    );
+
+    // Also include any element directly matching the targetId
+    if (targetId) {
+      const idMatch = document.querySelector(
+        `[data-job-id="${targetId}"], [data-jk="${targetId}"], [id*="${targetId}"], [data-id*="${targetId}"]`
+      );
+      if (idMatch && !candidates.includes(idMatch)) {
+        candidates.push(idMatch);
+      }
+    }
+
+    let bestContainer = null;
+    let highestScore = -1;
+
+    for (const el of candidates) {
+      const text = el.innerText || el.textContent || "";
+      const textLength = text.trim().length;
+      if (textLength < 60) continue;
+
+      let score = 0;
+
+      // 1. Target ID matching (+50 points)
+      if (targetId) {
+        const matchesId =
+          el.getAttribute("data-job-id") === targetId ||
+          el.getAttribute("data-jk") === targetId ||
+          el.id?.includes(targetId) ||
+          el.querySelector(`[data-job-id="${targetId}"], [data-jk="${targetId}"], a[href*="${targetId}"]`);
+        if (matchesId) {
+          score += 50;
+        }
+      }
+
+      // 2. Heading presence (+25 points)
+      const hasHeading = el.querySelector("h1, h2");
+      if (hasHeading && (hasHeading.textContent?.trim().length || 0) > 3) {
+        score += 25;
+      }
+
+      // 3. Job keyword density (+25 points)
+      const keywordRegex = /\b(?:responsibilities|requirements|qualifications|about the role|what you'll do|who you are|benefits|compensation|apply now|job description|overview)\b/i;
+      if (keywordRegex.test(text)) {
+        score += 25;
+      }
+
+      // 4. Text substance (+15 points for substantial text)
+      if (textLength >= 300 && textLength <= 8000) {
+        score += 15;
+      }
+
+      // 5. Layout positioning (+20 points for right-hand or centered reading pane)
+      try {
+        const rect = el.getBoundingClientRect();
+        const viewportWidth = window.innerWidth || 1200;
+        if (rect.width >= 320 && rect.left >= viewportWidth * 0.2) {
+          score += 20;
+        } else if (rect.width >= 450) {
+          score += 10;
+        }
+      } catch {}
+
+      // 6. Penalty for repetitive card list structures (-40 points)
+      const listItems = el.querySelectorAll("li, article, div[class*='card'], div[class*='item'], div[data-testid*='job']");
+      if (listItems.length >= 4 && el.querySelectorAll("h1").length === 0) {
+        score -= 40;
+      }
+
+      if (score > highestScore && score >= 35) {
+        highestScore = score;
+        bestContainer = el;
+      }
+    }
+
+    return bestContainer;
   }
 
   const SKILL_ALIASES = [
@@ -228,8 +314,12 @@
   }
 
   // 3. Indeed DOM Extractor
-  function extractFromIndeed() {
+  async function extractFromIndeed() {
     if (!window.location.hostname.includes("indeed.")) return null;
+
+    // Detect target jk/vjk from URL parameters
+    const vjkMatch = window.location.search.match(/[?&]v?jk=([a-zA-Z0-9_-]+)/);
+    const targetJk = vjkMatch ? vjkMatch[1] : null;
 
     // Detect if we are on a two-pane search results page with an active right preview pane
     const rightPaneSelectors = [
@@ -243,18 +333,44 @@
     ];
 
     let activePane = null;
-    for (const sel of rightPaneSelectors) {
-      const el = document.querySelector(sel);
-      if (el && el.innerText && el.innerText.trim().length > 30) {
-        if (el.querySelector("#jobDescriptionText, [data-testid='jobDescriptionText'], h1, h2, #salaryInfoAndJobType")) {
-          activePane = el;
+
+    // 1. Check for preview iframe (common in Indeed split views)
+    const iframes = document.querySelectorAll(
+      "iframe#vjs-container-iframe, iframe[name*='vjs'], iframe[title*='Job details'], iframe[src*='viewjob']"
+    );
+    for (const iframe of iframes) {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (doc && (doc.querySelector("#jobDescriptionText, [data-testid='jobDescriptionText'], .jobsearch-JobInfoHeader-title") || (doc.body?.innerText?.length || 0) > 50)) {
+          activePane = doc.body;
           break;
+        }
+      } catch {}
+    }
+
+    // 2. Check main DOM rightPaneSelectors
+    if (!activePane) {
+      for (const sel of rightPaneSelectors) {
+        const el = document.querySelector(sel);
+        if (el && el.innerText && el.innerText.trim().length > 30) {
+          if (el.querySelector("#jobDescriptionText, [data-testid='jobDescriptionText'], h1, h2, #salaryInfoAndJobType")) {
+            activePane = el;
+            break;
+          }
         }
       }
     }
 
-    // Scoped container: If activePane exists, search inside it to prevent search result list bleed
-    const scope = activePane || document;
+    // 3. Check for specific clicked job card in left list if targetJk is known
+    let targetedCard = null;
+    if (targetJk) {
+      targetedCard = document.querySelector(
+        `[data-jk="${targetJk}"], a[href*="${targetJk}"], [data-mobtk*="${targetJk}"]`
+      )?.closest(".job_seen_beacon, .tapItem, li, div[class*='jobCard']");
+    }
+
+    // Scoped container: prioritize activePane, then targetedCard, else fallback to document
+    const scope = activePane || targetedCard || document;
 
     const queryInScope = (selectors) => {
       for (const sel of selectors) {
@@ -280,14 +396,23 @@
     ];
     let titleEl = queryInScope(titleSelectors);
 
+    // If targetedCard exists and title not found in activePane, query targetedCard specifically
+    if (!titleEl && targetedCard) {
+      titleEl = targetedCard.querySelector("h2.jobTitle span, h2.jobTitle a, .jobTitle");
+    }
+
     // If no right pane and no title found yet, check for selected job card in search list
     if (!titleEl && !activePane) {
       titleEl = document.querySelector(
-        ".job_seen_beacon.selected h2.jobTitle span, .tapItem.selected h2.jobTitle span, " +
-        ".job_seen_beacon h2.jobTitle span, h2.jobTitle span, h2.jobTitle a"
+        ".job_seen_beacon.selected h2.jobTitle span, .tapItem.selected h2.jobTitle span"
       );
     }
     let title = titleEl ? titleEl.textContent?.trim() : "";
+
+    // Prevent generic Indeed page title like "Job Search" from being treated as job title
+    if (/^(?:Job Search|Jobs, Employment|Find Jobs)$/i.test(title)) {
+      title = "";
+    }
 
     // 2. Company Name
     const companySelectors = [
@@ -304,10 +429,13 @@
     ];
     let companyEl = queryInScope(companySelectors);
 
+    if (!companyEl && targetedCard) {
+      companyEl = targetedCard.querySelector("span[data-testid='company-name'], .companyName, a[href*='/cmp/']");
+    }
+
     if (!companyEl && !activePane) {
       companyEl = document.querySelector(
-        ".job_seen_beacon.selected span[data-testid='company-name'], .job_seen_beacon.selected .companyName, " +
-        "span[data-testid='company-name'], .companyName, a[href*='/cmp/']"
+        ".job_seen_beacon.selected span[data-testid='company-name'], .job_seen_beacon.selected .companyName"
       );
     }
     let company = companyEl ? companyEl.textContent?.trim() : "";
@@ -324,10 +452,13 @@
     ];
     let locationEl = queryInScope(locationSelectors);
 
+    if (!locationEl && targetedCard) {
+      locationEl = targetedCard.querySelector("[data-testid='text-location'], div.companyLocation");
+    }
+
     if (!locationEl && !activePane) {
       locationEl = document.querySelector(
-        ".job_seen_beacon.selected [data-testid='text-location'], .job_seen_beacon.selected div.companyLocation, " +
-        "[data-testid='text-location'], div.companyLocation"
+        ".job_seen_beacon.selected [data-testid='text-location'], .job_seen_beacon.selected div.companyLocation"
       );
     }
     let location = locationEl ? locationEl.textContent?.trim() : "Remote";
@@ -350,8 +481,6 @@
       desc = cleanJobDescription(desc);
     } else if (activePane) {
       desc = cleanJobDescription(activePane.innerText || "");
-    } else {
-      desc = cleanJobDescription(document.body?.innerText || "");
     }
 
     // 5. Salary
@@ -375,16 +504,15 @@
     if (salary === "Salary not listed" && desc) {
       salary = extractSalary(desc);
     }
-    if (salary === "Salary not listed" && !activePane) {
-      const selectedSalaryEl = document.querySelector(".job_seen_beacon.selected .salary-snippet-container");
-      if (selectedSalaryEl) salary = extractSalary(selectedSalaryEl.textContent || "");
+    if (salary === "Salary not listed" && targetedCard) {
+      const cardSalary = targetedCard.querySelector(".salary-snippet-container");
+      if (cardSalary) salary = extractSalary(cardSalary.textContent || "");
     }
 
     // 6. Direct Job URL
     let url = window.location.href;
-    const vjkMatch = window.location.search.match(/[?&]v?jk=([a-zA-Z0-9_-]+)/);
-    if (vjkMatch) {
-      url = `${window.location.origin}/viewjob?jk=${vjkMatch[1]}`;
+    if (targetJk) {
+      url = `${window.location.origin}/viewjob?jk=${targetJk}`;
     } else {
       const directLink = scope.querySelector("a[href*='/viewjob?jk='], a[href*='/rc/clk?jk=']");
       if (directLink && directLink.href) {
@@ -392,11 +520,62 @@
       }
     }
 
-    // 7. Fallback to document.title if title missing
+    // 7. Same-origin /viewjob fetch fallback if targetJk is known but preview pane was unmounted or incomplete
+    if (targetJk && (!desc || desc.length < 50 || !title)) {
+      try {
+        const fetchUrl = `${window.location.origin}/viewjob?jk=${targetJk}`;
+        const res = await fetch(fetchUrl);
+        if (res.ok) {
+          const html = await res.text();
+          const fetchedDoc = new DOMParser().parseFromString(html, "text/html");
+          const fetchedTitleEl = fetchedDoc.querySelector(
+            "h1[data-testid='jobsearch-JobInfoHeader-title'], .jobsearch-JobInfoHeader-title, h1"
+          );
+          const fetchedTitle = fetchedTitleEl?.textContent?.trim();
+          if (fetchedTitle && !/^(?:Job Search|Jobs, Employment|Find Jobs)$/i.test(fetchedTitle)) {
+            title = fetchedTitle;
+          }
+
+          const fetchedCompanyEl = fetchedDoc.querySelector(
+            "[data-testid='inlineHeader-companyName'], .jobsearch-CompanyInfoContainer a"
+          );
+          if (fetchedCompanyEl?.textContent?.trim() && (!company || company === "Indeed Employer")) {
+            company = fetchedCompanyEl.textContent.trim();
+          }
+
+          const fetchedLocEl = fetchedDoc.querySelector(
+            "[data-testid='inlineHeader-companyLocation'], [data-testid='job-location']"
+          );
+          if (fetchedLocEl?.textContent?.trim()) {
+            location = fetchedLocEl.textContent.trim();
+          }
+
+          const fetchedDescEl = fetchedDoc.querySelector("#jobDescriptionText, [data-testid='jobDescriptionText']");
+          if (fetchedDescEl) {
+            desc = cleanJobDescription(fetchedDescEl.innerText || fetchedDescEl.textContent || "");
+          }
+
+          if (salary === "Salary not listed") {
+            const fetchedSalaryEl = fetchedDoc.querySelector("#salaryInfoAndJobType, [data-testid='attribute_snippets_section']");
+            if (fetchedSalaryEl) salary = extractSalary(fetchedSalaryEl.textContent || "");
+            if (salary === "Salary not listed" && desc) salary = extractSalary(desc);
+          }
+        }
+      } catch (err) {
+        console.warn("Viewjob fetch fallback warning:", err);
+      }
+    }
+
+    // 8. Fallback to document.title only if title missing and title is NOT generic site header
     if (!title && document.title.includes("Indeed")) {
-      const parts = document.title.replace(/\s*[-–|•]\s*Indeed.*$/i, "").split(/\s*[-–|•]\s*/);
-      if (parts[0]) title = parts[0].trim();
-      if (parts[1] && !company) company = parts[1].trim();
+      const isGeneric = /^(?:Job Search|Jobs, Employment|Find Jobs|Indeed)/i.test(document.title.trim());
+      if (!isGeneric) {
+        const parts = document.title.replace(/\s*[-–|•]\s*Indeed.*$/i, "").split(/\s*[-–|•]\s*/);
+        if (parts[0] && !/^(?:Job Search|Jobs, Employment|Find Jobs)/i.test(parts[0].trim())) {
+          title = parts[0].trim();
+        }
+        if (parts[1] && !company) company = parts[1].trim();
+      }
     }
 
     if (title) {
@@ -423,7 +602,229 @@
     return null;
   }
 
-  // 4. Highlighted Text Fallback
+  // 4. JobStreet & Seek DOM Extractor
+  async function extractFromJobStreet() {
+    const hostname = typeof window !== "undefined" ? window.location.hostname : "";
+    if (!hostname.includes("jobstreet.") && !hostname.includes("seek.") && !hostname.includes("jobsdb.")) {
+      return null;
+    }
+
+    // Detect target jobId from query parameter or pathname
+    const queryMatch = window.location.search.match(/[?&]jobId=([a-zA-Z0-9_-]+)/i);
+    const pathMatch = window.location.pathname.match(/\/job\/([a-zA-Z0-9_-]+)/i);
+    const targetJobId = queryMatch ? queryMatch[1] : (pathMatch ? pathMatch[1] : null);
+
+    // Candidates for JobStreet / Seek reading pane
+    const rightPaneSelectors = [
+      "[data-automation='jobDetails']",
+      "[data-automation='jobAdDetails']",
+      "[data-automation='job-details-page']",
+      "[data-automation='split-view-job-details']",
+      "article[data-automation*='job']",
+      "main"
+    ];
+
+    let activePane = null;
+    for (const sel of rightPaneSelectors) {
+      const el = document.querySelector(sel);
+      if (el && (el.innerText || "").trim().length > 40) {
+        activePane = el;
+        break;
+      }
+    }
+
+    // If activePane not found with static selectors, try semantic container scorer
+    if (!activePane) {
+      activePane = findActiveJobContainer(targetJobId);
+    }
+
+    // Check for targeted job card in search list if jobId is known
+    let targetedCard = null;
+    if (targetJobId) {
+      targetedCard = document.querySelector(
+        `[data-job-id="${targetJobId}"], a[href*="${targetJobId}"]`
+      )?.closest("[data-automation='job-card'], article, li, div[class*='jobCard']");
+    }
+
+    const scope = activePane || targetedCard || document;
+
+    const queryInScope = (selectors) => {
+      for (const sel of selectors) {
+        const found = scope.querySelector(sel);
+        if (found && found.textContent?.trim()) return found;
+      }
+      return null;
+    };
+
+    // 1. Job Title
+    const titleSelectors = [
+      "[data-automation='job-detail-title']",
+      "[data-automation='jobTitle']",
+      "[data-automation='job-title']",
+      "h1[data-automation]",
+      "h1",
+      "h2[data-automation='jobTitle']"
+    ];
+    let titleEl = queryInScope(titleSelectors);
+    if (!titleEl && targetedCard) {
+      titleEl = targetedCard.querySelector("[data-automation='jobTitle'], a, h3, h2");
+    }
+    let title = titleEl ? titleEl.textContent?.trim() : "";
+
+    // Ignore generic site headers
+    if (/^(?:Jobs in|Job Search|Career Opportunities|JobStreet|Seek|Find Jobs)$/i.test(title)) {
+      title = "";
+    }
+
+    // 2. Company Name
+    const companySelectors = [
+      "[data-automation='advertiser-name']",
+      "[data-automation='job-company']",
+      "a[data-automation='advertiser-name']",
+      "span[data-automation='advertiser-name']"
+    ];
+    let companyEl = queryInScope(companySelectors);
+    if (!companyEl && targetedCard) {
+      companyEl = targetedCard.querySelector("[data-automation='advertiser-name'], [class*='advertiser'], [class*='company']");
+    }
+    let company = companyEl ? companyEl.textContent?.trim() : "";
+
+    // 3. Location
+    const locationSelectors = [
+      "[data-automation='job-detail-location']",
+      "[data-automation='job-location']",
+      "[data-automation='jobLocation']",
+      "span[data-automation*='location']"
+    ];
+    let locationEl = queryInScope(locationSelectors);
+    if (!locationEl && targetedCard) {
+      locationEl = targetedCard.querySelector("[data-automation='job-location'], [class*='location']");
+    }
+    let location = locationEl ? locationEl.textContent?.trim() : "Remote";
+
+    // 4. Description
+    const descSelectors = [
+      "[data-automation='jobAdDetails']",
+      "[data-automation='jobDetails']",
+      "[data-automation='job-details']",
+      "div[data-automation='jobDescription']"
+    ];
+    let descEl = queryInScope(descSelectors);
+    let desc = "";
+    if (descEl) {
+      desc = descEl.innerText?.trim() || descEl.textContent?.trim() || "";
+      desc = cleanJobDescription(desc);
+    } else if (activePane) {
+      desc = cleanJobDescription(activePane.innerText || "");
+    }
+
+    // 5. Salary
+    const salarySelectors = [
+      "[data-automation='job-detail-salary']",
+      "[data-automation='job-salary']",
+      "[data-automation='jobSalary']",
+      "span[data-automation*='salary']"
+    ];
+    let salaryEl = queryInScope(salarySelectors);
+    let salary = "Salary not listed";
+    if (salaryEl) {
+      salary = extractSalary(salaryEl.textContent || "");
+    }
+    if (salary === "Salary not listed" && activePane) {
+      salary = extractSalary(activePane.innerText);
+    }
+    if (salary === "Salary not listed" && desc) {
+      salary = extractSalary(desc);
+    }
+    if (salary === "Salary not listed" && targetedCard) {
+      salary = extractSalary(targetedCard.textContent || "");
+    }
+
+    // 6. Canonical Job URL
+    let url = window.location.href;
+    if (targetJobId) {
+      url = `${window.location.origin}/job/${targetJobId}`;
+    } else {
+      const link = scope.querySelector("a[href*='/job/']");
+      if (link && link.href) {
+        url = link.href.split("?")[0];
+      }
+    }
+
+    // 7. Same-origin /job/{jobId} fetch fallback if 2-pane preview elements were unmounted or delayed
+    if (targetJobId && (!desc || desc.length < 50 || !title)) {
+      try {
+        const fetchUrl = `${window.location.origin}/job/${targetJobId}`;
+        const res = await fetch(fetchUrl);
+        if (res.ok) {
+          const html = await res.text();
+          const fetchedDoc = new DOMParser().parseFromString(html, "text/html");
+
+          const fetchedTitleEl = fetchedDoc.querySelector(
+            "[data-automation='job-detail-title'], [data-automation='jobTitle'], h1"
+          );
+          if (fetchedTitleEl?.textContent?.trim()) {
+            title = fetchedTitleEl.textContent.trim();
+          }
+
+          const fetchedCompanyEl = fetchedDoc.querySelector("[data-automation='advertiser-name']");
+          if (fetchedCompanyEl?.textContent?.trim() && (!company || company === "JobStreet Employer")) {
+            company = fetchedCompanyEl.textContent.trim();
+          }
+
+          const fetchedLocEl = fetchedDoc.querySelector("[data-automation='job-detail-location']");
+          if (fetchedLocEl?.textContent?.trim()) {
+            location = fetchedLocEl.textContent.trim();
+          }
+
+          const fetchedDescEl = fetchedDoc.querySelector("[data-automation='jobAdDetails'], [data-automation='jobDetails']");
+          if (fetchedDescEl) {
+            desc = cleanJobDescription(fetchedDescEl.innerText || fetchedDescEl.textContent || "");
+          }
+
+          if (salary === "Salary not listed") {
+            const fetchedSalaryEl = fetchedDoc.querySelector("[data-automation='job-detail-salary']");
+            if (fetchedSalaryEl) salary = extractSalary(fetchedSalaryEl.textContent || "");
+            if (salary === "Salary not listed" && desc) salary = extractSalary(desc);
+          }
+        }
+      } catch (err) {
+        console.warn("JobStreet /job fetch fallback warning:", err);
+      }
+    }
+
+    // Fallback title from document.title if not found
+    if (!title && document.title.includes("JobStreet")) {
+      const parts = document.title.replace(/\s*[-–|•]\s*JobStreet.*$/i, "").split(/\s*[-–|•]\s*/);
+      if (parts[0]) title = parts[0].trim();
+      if (parts[1] && !company) company = parts[1].trim();
+    }
+
+    if (title) {
+      return {
+        title,
+        company: company || "JobStreet Employer",
+        location: location || "Remote",
+        salary,
+        skills: extractSkills((title || "") + " " + (desc || "")),
+        description: desc.slice(0, 4000),
+        rawText: (desc || (activePane ? activePane.innerText : "") || "").slice(0, 4000),
+        partialFields: {
+          title,
+          company: company || "JobStreet Employer",
+          location: location || "Remote",
+          salary,
+          skills: extractSkills((title || "") + " " + (desc || "")),
+        },
+        url,
+        source: "jobstreet",
+      };
+    }
+
+    return null;
+  }
+
+  // 5. Highlighted Text Fallback
   function extractFromSelection() {
     const sel = window.getSelection()?.toString().trim();
     if (!sel || sel.length < 5) return null;
@@ -471,18 +872,23 @@
   }
 
   // Master Extraction Routine
-  function extractJob() {
+  async function extractJob() {
     const hostname = typeof window !== "undefined" ? window.location.hostname : "";
 
     // 1. Site-Specific Extractors (Run FIRST on their respective domains!)
     if (hostname.includes("indeed.")) {
-      const fromIndeed = extractFromIndeed();
+      const fromIndeed = await extractFromIndeed();
       if (fromIndeed) return fromIndeed;
     }
 
     if (hostname.includes("linkedin.com")) {
       const fromLinkedIn = extractFromLinkedIn();
       if (fromLinkedIn) return fromLinkedIn;
+    }
+
+    if (hostname.includes("jobstreet.") || hostname.includes("seek.") || hostname.includes("jobsdb.")) {
+      const fromJobStreet = await extractFromJobStreet();
+      if (fromJobStreet) return fromJobStreet;
     }
 
     // 2. Try JSON-LD Schema.org for structured postings
@@ -494,24 +900,62 @@
     if (fromSelection) return fromSelection;
 
     // 4. Fallback site-specific check if domain matched non-standard pattern
-    const fromIndeedFallback = extractFromIndeed();
+    const fromIndeedFallback = await extractFromIndeed();
     if (fromIndeedFallback) return fromIndeedFallback;
 
     const fromLinkedInFallback = extractFromLinkedIn();
     if (fromLinkedInFallback) return fromLinkedInFallback;
 
-    // 5. Generic Document Fallback
-    const pageTitle = document.title || "";
-    let guessedTitle = pageTitle.split(/[-|–•]/)[0]?.trim() || "Job Opportunity";
-    let guessedCompany = pageTitle.split(/[-|–•]/)[1]?.trim() || "Company";
+    const fromJobStreetFallback = await extractFromJobStreet();
+    if (fromJobStreetFallback) return fromJobStreetFallback;
 
-    const bodyText = cleanJobDescription(document.body?.innerText || "");
+    // 5. Generic Document Fallback with Universal Semantic Reading Pane Scorer
+    const targetUrlId = (
+      window.location.search.match(/[?&](?:jobId|jk|id|job_id)=([a-zA-Z0-9_-]+)/i) ||
+      window.location.pathname.match(/\/(?:jobs|job|position|career|view)\/([a-zA-Z0-9_-]+)/i)
+    )?.[1] || null;
+
+    const activeContainer = findActiveJobContainer(targetUrlId);
+
+    let guessedTitle = "";
+    if (activeContainer) {
+      const heading = activeContainer.querySelector("h1, h2");
+      if (heading && heading.textContent?.trim().length > 3) {
+        guessedTitle = heading.textContent.trim();
+      }
+    }
+
+    if (!guessedTitle) {
+      const pageTitle = document.title || "";
+      guessedTitle = pageTitle.split(/[-|–•]/)[0]?.trim() || "Job Opportunity";
+      if (/^(?:Job Search|Jobs, Employment|Find Jobs|Careers)$/i.test(guessedTitle)) {
+        guessedTitle = "Job Opportunity";
+      }
+    }
+
+    let guessedCompany = "";
+    if (activeContainer) {
+      const companyEl = activeContainer.querySelector("[class*='company'], [class*='employer'], [data-company]");
+      if (companyEl && companyEl.textContent?.trim().length > 1) {
+        guessedCompany = companyEl.textContent.trim();
+      }
+    }
+    if (!guessedCompany) {
+      guessedCompany = (document.title || "").split(/[-|–•]/)[1]?.trim() || "Company";
+    }
+
+    const bodyText = cleanJobDescription(
+      activeContainer ? (activeContainer.innerText || "") : (document.body?.innerText || "")
+    );
+    const salary = extractSalary(
+      activeContainer ? activeContainer.innerText : (document.body?.innerText || "")
+    );
 
     return {
       title: guessedTitle,
       company: guessedCompany,
       location: "Remote",
-      salary: extractSalary(document.body?.innerText || ""),
+      salary,
       skills: extractSkills((guessedTitle || "") + " " + (bodyText || "")),
       description: bodyText.slice(0, 3000),
       rawText: bodyText.slice(0, 4000),
@@ -519,7 +963,7 @@
         title: guessedTitle,
         company: guessedCompany,
         location: "Remote",
-        salary: extractSalary(document.body?.innerText || ""),
+        salary,
         skills: extractSkills((guessedTitle || "") + " " + (bodyText || "")),
       },
       url: window.location.href,
@@ -531,12 +975,13 @@
   if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.type === "EXTRACT_JOB_DETAILS") {
-        try {
-          const data = extractJob();
-          sendResponse({ ok: true, data });
-        } catch (err) {
-          sendResponse({ ok: false, error: err.message });
-        }
+        Promise.resolve(extractJob())
+          .then((data) => {
+            sendResponse({ ok: true, data });
+          })
+          .catch((err) => {
+            sendResponse({ ok: false, error: err.message });
+          });
       }
       return true; // keeps channel open for async response
     });
@@ -549,9 +994,11 @@
       extractSalary,
       extractSkills,
       cleanJobDescription,
+      findActiveJobContainer,
       extractFromSchemaOrg,
       extractFromLinkedIn,
       extractFromIndeed,
+      extractFromJobStreet,
       extractFromSelection,
     };
   }

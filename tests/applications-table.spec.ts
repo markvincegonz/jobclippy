@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Interactive Applications Table Suite", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await request.post("/api/jobs/reset");
     await page.goto("/");
     // Switch to Table view
     await page.getByTestId("nav-table-btn").click();

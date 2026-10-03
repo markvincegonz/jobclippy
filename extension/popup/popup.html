@@ -30,49 +30,9 @@
       </div>
     </header>
 
-    <!-- Main Card Body -->
+    <!-- Main Minimalist Form -->
     <main class="card-body">
-      <!-- Title Input -->
-      <div class="field-group">
-        <label for="job-title" class="field-label sr-only">Job Title</label>
-        <input type="text" id="job-title" class="title-input" placeholder="Job Title (e.g. Frontend Engineer)" spellcheck="false" />
-      </div>
-
-      <!-- Company Row -->
-      <div class="company-row">
-        <div class="company-icon">🏢</div>
-        <input type="text" id="job-company" class="company-input" placeholder="Company Name" spellcheck="false" />
-      </div>
-
-      <!-- Meta Chips (Location & Salary) -->
-      <div class="meta-row">
-        <div class="meta-chip">
-          <span class="chip-icon">📍</span>
-          <input type="text" id="job-location" class="chip-input" placeholder="Location" value="Remote" />
-        </div>
-        <div class="meta-chip">
-          <span class="chip-icon">💰</span>
-          <input type="text" id="job-salary" class="chip-input" placeholder="Salary" value="Salary not listed" />
-        </div>
-      </div>
-
-      <!-- Skills Section -->
-      <div class="section-group">
-        <div class="section-header">
-          <span class="section-title">Skills</span>
-          <span class="section-hint">click to remove</span>
-        </div>
-        <div id="skills-container" class="skills-container">
-          <!-- Dynamically populated skill tags -->
-        </div>
-        <div class="add-skill-row">
-          <input type="text" id="new-skill-input" class="new-skill-input" placeholder="+ Add skill (press Enter)..." />
-        </div>
-      </div>
-
-      <div class="hairline-divider"></div>
-
-      <!-- Stage Selector Dropdown -->
+      <!-- Pipeline Stage Selector Dropdown -->
       <div class="form-row">
         <label for="job-stage" class="form-label">Pipeline Stage</label>
         <select id="job-stage" class="stage-select">
@@ -84,33 +44,33 @@
         </select>
       </div>
 
-      <!-- Personal Quick Note -->
+      <!-- Quick Personal Note -->
       <div class="form-row">
         <label for="job-note" class="form-label">Quick Personal Note</label>
-        <textarea id="job-note" class="note-textarea" rows="2" placeholder="Add quick note (e.g. referral from Alex)..."></textarea>
+        <textarea id="job-note" class="note-textarea" rows="3" placeholder="Add quick note (e.g. referral from Alex, high priority)..."></textarea>
       </div>
 
       <!-- Primary Action Button -->
       <button id="clip-btn" class="clip-button">
-        <span id="btn-icon" class="btn-icon">⚡</span>
-        <span id="btn-label" class="btn-label">[ Clip to JobClippy ]</span>
+        <span id="btn-label" class="btn-label">Clip to JobClippy</span>
       </button>
 
       <!-- Feedback Banner -->
       <div id="feedback-banner" class="feedback-banner hidden">
         <span class="feedback-icon">✓</span>
-        <span id="feedback-msg">Saved to your JobClippy pipeline!</span>
+        <span id="feedback-msg">Saved to JobClippy</span>
       </div>
     </main>
 
     <!-- Footer -->
     <footer class="popup-footer">
-      <a href="http://localhost:3000" target="_blank" id="open-board-link" class="footer-link">
+      <a href="#" target="_blank" id="open-board-link" class="footer-link">
         Open JobClippy Dashboard ↗
       </a>
     </footer>
   </div>
 
+  <script src="../config.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

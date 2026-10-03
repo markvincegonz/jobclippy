@@ -33,6 +33,24 @@ test.describe("Layer 2: Canonicalization & Cache Database Suite", () => {
     expect(hashCanonicalUrl(canon1)).toBe(hashCanonicalUrl(canon2));
   });
 
+  test("canonicalizeUrl normalizes JobStreet & Seek URLs to clean /job/{id} path", () => {
+    const rawJobStreetSplit =
+      "https://ph.jobstreet.com/web-jobs?jobId=95014441&type=standard";
+    const rawJobStreetDetail =
+      "https://ph.jobstreet.com/job/95014441?ref=search-standalone&type=standard&origin=jobTitle#sol=de4f0854592042b55b6f3745ed4259d3499d5552";
+    const rawSeek =
+      "https://www.seek.com.au/job/95014441?tracking=EMC-SAU";
+
+    const canonSplit = canonicalizeUrl(rawJobStreetSplit);
+    const canonDetail = canonicalizeUrl(rawJobStreetDetail);
+    const canonSeek = canonicalizeUrl(rawSeek);
+
+    expect(canonSplit).toBe("https://ph.jobstreet.com/job/95014441");
+    expect(canonDetail).toBe("https://ph.jobstreet.com/job/95014441");
+    expect(canonSeek).toBe("https://seek.com.au/job/95014441");
+    expect(hashCanonicalUrl(canonSplit)).toBe(hashCanonicalUrl(canonDetail));
+  });
+
   test("canonicalizeUrl strips arbitrary tracking queries while preserving non-tracking search parameters", () => {
     const raw =
       "https://careers.google.com/jobs/results/12345/?utm_source=ad&team=ENGINEERING&ref=newsletter&location=Austin";

@@ -50,5 +50,11 @@
       "all_frames": false,
       "run_at": "document_idle"
     }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["config.js"],
+      "matches": ["<all_urls>"]
+    }
   ]
 }

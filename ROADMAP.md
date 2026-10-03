@@ -14,15 +14,15 @@
 | **Phase 2** | Core Kanban Board & Job Lifecycle | **Completed** (100%) | [job-board](openspec/specs/job-board/spec.md), [smart-extractor](openspec/specs/smart-extractor/spec.md) |
 | **Phase 3** | Admin Shell & Power Navigation | **Completed** (100%) | [admin-navigation](openspec/specs/admin-navigation/spec.md) |
 | **Phase 4** | High-Density Interactive Applications Table | **Completed** (100%) | [applications-table](openspec/specs/applications-table/spec.md) |
-| **Phase 5** | Browser Extension (MV3 Universal Clipper) | **Completed** (100%) | [browser-extension](openspec/changes/browser-extension-clipper/specs/browser-extension/spec.md), [extension-test](tests/browser-extension.spec.ts) |
-| **Phase 6** | Dockerized PostgreSQL & Prisma Backend | **Completed** (100%) | [database-persistence](openspec/changes/docker-postgres-prisma/specs/database-persistence/spec.md), [jobs-database-test](tests/jobs-database.spec.ts) |
+| **Phase 5** | Browser Extension (MV3 Universal Clipper) | **Completed** (100%) | [browser-extension](openspec/specs/browser-extension/spec.md), [extension-test](tests/browser-extension.spec.ts) |
+| **Phase 6** | Dockerized PostgreSQL & Prisma Backend | **Completed** (100%) | [database-persistence](openspec/specs/database-persistence/spec.md), [jobs-database-test](tests/jobs-database.spec.ts) |
 | **Phase 7** | Pipeline Velocity & Funnel Analytics | **Planned** | MVP Week 3 |
 | **Phase 8** | AI Resume Matcher & Skill Gap Analyzer | **Planned** | Premium Layer |
 | **Phase 9** | Interview Workspace & Follow-Up Reminders | **Planned** | Assistant Layer |
 | **Phase 10** | Backend, Auth & Full Page Suite (Login/Signup/Account) | **Planned** | MVP Week 4 |
 | **Phase 11** | SaaS Monetization, Landing Page & Launch | **Planned** | Launch Week |
 
-**Current Test Health:** 43/43 Playwright E2E tests passing.
+**Current Test Health:** 52/52 Playwright E2E tests passing.
 
 ---
 
@@ -121,9 +121,19 @@
 - [x] **Universal "Highlight-to-Clip" Fallback**
   - Right-click context menu "Save Highlighted Job to JobClippy".
   - Content script extraction of user-highlighted text on any company career page.
-- [x] **Quick Popup Interface**
-  - Pre-filled preview card with detected attributes, editable tags, stage selector, and notes.
-  - One-click "[ Save Job ]" button with instant checkmark feedback and mascot animation.
+- [x] **Ultra-Minimalist Clipper UI & Emoji Purge**
+  - Removal of pregathered form inputs (Title, Company, Location, Salary, Skills) for a focused Stage & Personal Note layout.
+  - Complete elimination of casual emojis (`⚡`, `✨`, `🏢`, `📍`, `💰`), styled with clean Linear typography and SVG icons.
+  - On-demand AI extraction executed only upon clicking "Clip to JobClippy" (zero background requests on popup open).
+  - Scoped Indeed feed extraction targeting `vjk` parameter and same-origin viewjob retrieval, completely preventing "Job Search" page-title leakage.
+  - Validated in [browser-extension.spec.ts](tests/browser-extension.spec.ts) and [minimalist-clipper-indeed-fix](openspec/changes/archive/2026-10-03-minimalist-clipper-indeed-fix/proposal.md).
+- [x] **JobStreet, Seek & Universal Semantic Reading Pane Extractor**
+  - First-class extraction for JobStreet (`ph.jobstreet.com`, `jobstreet.com.*`), Seek (`seek.com.*`), and JobsDB targeting `data-automation` attributes across 2-pane search views (`/web-jobs?jobId=...`) and direct opportunity URLs (`/job/...`).
+  - Canonical URL normalization standardizing split-view and tracked links to clean `/job/{jobId}` paths.
+  - Same-origin `/job/{jobId}` HTML fetch fallback in content script when split-view preview panes are unmounted or delayed.
+  - Universal Semantic Reading Pane Scorer (`findActiveJobContainer`) dynamically isolating the active reading view on arbitrary multi-column job boards and discarding search card sidebars.
+  - AI prompt URL and section disambiguation in `/api/extract` directing models to prioritize active URL and expanded description panes.
+  - Validated in [browser-extension.spec.ts](tests/browser-extension.spec.ts), [cache-canonicalize.spec.ts](tests/cache-canonicalize.spec.ts), and [jobstreet-and-universal-section-extractor](openspec/changes/archive/2026-10-03-jobstreet-and-universal-section-extractor/proposal.md).
 - [x] **Data Sync Bridge**
   - Web message / Chrome Storage sync to JobClippy web application (`jobclippy_jobs_v1`).
   - Instant reactive store update without requiring page reload.
@@ -151,6 +161,12 @@
   - Elimination of client-side key drawer in extension popup for frictionless UX.
   - Server environment key enforcement (`.env.local`).
   - DeepSeek `json_object` format support (`deepseek-chat`).
+- [x] **Direct Database Persistence & Centralized Environment Configuration**
+  - Direct `POST /api/jobs` extension save pipeline into PostgreSQL with offline retry fallback.
+  - Centralized `extension/config.js` resolving `NEXT_PUBLIC_API_URL` without hardcoded URLs.
+  - Database-first web application store (`src/lib/job-store.tsx`) eliminating temporary storage divergence.
+  - PostgreSQL-backed extraction cache (`src/lib/cache/prisma-store.ts`) via Prisma replacing ephemeral disk file cache.
+  - Full automated validation in [extension-db-direct.spec.ts](tests/extension-db-direct.spec.ts).
 
 ---
 

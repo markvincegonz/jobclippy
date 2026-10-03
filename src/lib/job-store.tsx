@@ -166,7 +166,6 @@ function getStoredJobs(): Job[] {
         memoryJobs = JSON.parse(stored);
       } else {
         memoryJobs = SEED_JOBS;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_JOBS));
       }
     } catch {
       memoryJobs = SEED_JOBS;
@@ -180,35 +179,64 @@ function saveStoredJobs(jobs: Job[]) {
   if (typeof window !== "undefined") {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
-    } catch (err) {
-      console.error("Failed to save jobs to localStorage", err);
-    }
+    } catch {}
   }
   notify();
 }
 
 function subscribe(onStoreChange: () => void) {
   listeners.add(onStoreChange);
-  const handleStorage = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEY && e.newValue) {
-      try {
-        memoryJobs = JSON.parse(e.newValue);
-        notify();
-      } catch {
-        // ignore
-      }
-    }
-  };
 
-  const handleCustomSync = () => {
+  const handleCustomSync = (e: Event) => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        memoryJobs = JSON.parse(stored);
-        notify();
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          memoryJobs = parsed;
+          notify();
+          return;
+        }
       }
-    } catch {
-      // ignore
+    } catch {}
+
+    const customEvent = e as CustomEvent<{ added?: number; job?: Job; jobs?: Job[] }>;
+    const detail = customEvent?.detail;
+
+    if (detail?.job) {
+      const current = getStoredJobs();
+      if (!current.some((j) => j.id === detail.job!.id)) {
+        saveStoredJobs([detail.job, ...current]);
+      }
+    } else if (Array.isArray(detail?.jobs) && detail.jobs.length > 0) {
+      const current = getStoredJobs();
+      const currentIds = new Set(current.map((j) => j.id));
+      const toAdd = detail.jobs.filter((j) => !currentIds.has(j.id));
+      if (toAdd.length > 0) {
+        saveStoredJobs([...toAdd, ...current]);
+      }
+    } else {
+      fetch("/api/jobs")
+        .then((res) => res.json())
+        .then((res) => {
+          if (res.ok && Array.isArray(res.data)) {
+            saveStoredJobs(res.data);
+          }
+        })
+        .catch(() => {});
+    }
+  };
+
+  const handleStorage = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEY && e.newValue) {
+      try {
+        const parsed = JSON.parse(e.newValue);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          saveStoredJobs(parsed);
+        }
+      } catch {
+        // ignore
+      }
     }
   };
 
@@ -244,7 +272,7 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
   const jobs = isHydrated ? storedJobs : SEED_JOBS;
   const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null);
 
-  // Sync with PostgreSQL database on client mount non-destructively
+  // Fetch opportunities directly from PostgreSQL via /api/jobs on mount
   React.useEffect(() => {
     fetch("/api/jobs")
       .then((res) => res.json())
@@ -261,7 +289,7 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch((err) => {
-        console.warn("Could not fetch jobs from DB, using local store:", err);
+        console.warn("Could not fetch jobs from PostgreSQL /api/jobs:", err);
       });
   }, []);
 
@@ -293,25 +321,23 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
 
       saveStoredJobs([newJob, ...currentJobs]);
 
-      // Background sync to PostgreSQL database for production users
-      const syncToDb = typeof window !== "undefined" && !window.navigator?.webdriver;
-      if (syncToDb) {
-        fetch("/api/jobs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(jobData),
+      // Direct persistence to PostgreSQL database
+      fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(jobData),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.ok && data.data?.id) {
+            const updated = getStoredJobs().map((j) =>
+              j.id === tempId ? { ...j, id: data.data.id, notes: data.data.notes || j.notes } : j
+            );
+            saveStoredJobs(updated);
+            setSelectedJobId((current) => (current === tempId ? data.data.id : current));
+          }
         })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.ok && data.data?.id) {
-              const updated = getStoredJobs().map((j) =>
-                j.id === tempId ? { ...j, id: data.data.id } : j
-              );
-              saveStoredJobs(updated);
-            }
-          })
-          .catch((err) => console.warn("Failed to sync new job to DB:", err));
-      }
+        .catch((err) => console.warn("Failed to persist job to database:", err));
 
       return newJob;
     },
@@ -323,14 +349,11 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
       const currentJobs = getStoredJobs();
       saveStoredJobs(currentJobs.map((j) => (j.id === id ? { ...j, ...updates } : j)));
 
-      const syncToDb = typeof window !== "undefined" && !window.navigator?.webdriver;
-      if (syncToDb) {
-        fetch(`/api/jobs/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updates),
-        }).catch((err) => console.warn("Failed to sync update to DB:", err));
-      }
+      fetch(`/api/jobs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      }).catch((err) => console.warn("Failed to persist update to database:", err));
     },
     []
   );
@@ -351,14 +374,11 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
         })
       );
 
-      const syncToDb = typeof window !== "undefined" && !window.navigator?.webdriver;
-      if (syncToDb) {
-        fetch(`/api/jobs/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedPayload),
-        }).catch((err) => console.warn("Failed to sync stage move to DB:", err));
-      }
+      fetch(`/api/jobs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedPayload),
+      }).catch((err) => console.warn("Failed to persist stage move to database:", err));
     },
     []
   );
@@ -376,14 +396,11 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
         currentJobs.map((j) => (j.id === jobId ? { ...j, notes: [newNote, ...j.notes] } : j))
       );
 
-      const syncToDb = typeof window !== "undefined" && !window.navigator?.webdriver;
-      if (syncToDb) {
-        fetch(`/api/jobs/${jobId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ newNote: text.trim() }),
-        }).catch((err) => console.warn("Failed to sync note to DB:", err));
-      }
+      fetch(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newNote: text.trim() }),
+      }).catch((err) => console.warn("Failed to persist note to database:", err));
     },
     []
   );
@@ -404,12 +421,9 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
       saveStoredJobs(currentJobs.filter((j) => j.id !== id));
       setSelectedJobId((current) => (current === id ? null : current));
 
-      const syncToDb = typeof window !== "undefined" && !window.navigator?.webdriver;
-      if (syncToDb) {
-        fetch(`/api/jobs/${id}`, { method: "DELETE" }).catch((err) =>
-          console.warn("Failed to sync delete to DB:", err)
-        );
-      }
+      fetch(`/api/jobs/${id}`, { method: "DELETE" }).catch((err) =>
+        console.warn("Failed to persist delete to database:", err)
+      );
 
       return targetJob;
     },
@@ -428,12 +442,29 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
     next.splice(insertAt, 0, job);
     saveStoredJobs(next);
 
+    fetch("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(job),
+    }).catch((err) => console.warn("Failed to re-persist restored job:", err));
+
     lastDeletedRecordRef.current = null;
     return job;
   }, []);
 
   const resetToSeeds = React.useCallback(() => {
-    saveStoredJobs(SEED_JOBS);
+    fetch("/api/jobs/reset", { method: "POST" })
+      .then((res) => res.json())
+      .then((res) => {
+        if (res.ok && Array.isArray(res.data)) {
+          saveStoredJobs(res.data);
+        } else {
+          saveStoredJobs(SEED_JOBS);
+        }
+      })
+      .catch(() => {
+        saveStoredJobs(SEED_JOBS);
+      });
   }, []);
 
   const selectedJob = React.useMemo(

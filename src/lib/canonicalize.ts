@@ -58,6 +58,20 @@ export function canonicalizeUrl(rawUrl: string): string {
       }
     }
 
+    // 1.1 JobStreet / Seek / JobsDB normalization
+    if (
+      hostname.includes("jobstreet.") ||
+      hostname.includes("seek.") ||
+      hostname.includes("jobsdb.")
+    ) {
+      const jobId =
+        parsed.searchParams.get("jobId") ||
+        pathname.match(/\/job\/([a-zA-Z0-9_-]+)/)?.[1];
+      if (jobId) {
+        return `https://${hostname}/job/${encodeURIComponent(jobId)}`;
+      }
+    }
+
     // 2. LinkedIn normalization
     if (hostname.includes("linkedin.com")) {
       const jobIdMatch = pathname.match(/\/jobs\/view\/(\d+)/);

@@ -1,6 +1,12 @@
 // JobClippy MV3 Background Service Worker
 // Ephemeral service worker handling context menus, storage queue, and tab bridge messaging.
 
+try {
+  importScripts("/config.js");
+} catch (e) {
+  console.warn("Could not importScripts config.js:", e);
+}
+
 const CONTEXT_MENU_ID = "save-highlight-to-jobclippy";
 const APP_URL_PATTERNS = [
   "http://localhost/*",
@@ -134,6 +140,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       } else if (message.type === "CLEAR_PENDING_CLIPS") {
         await chrome.storage.local.set({ pending_clips: [] });
         await updateBadge(0);
+        sendResponse({ success: true });
+      } else if (message.type === "JOB_PERSISTED_TO_DB") {
+        try {
+          const tabs = await chrome.tabs.query({ url: APP_URL_PATTERNS });
+          for (const t of tabs) {
+            chrome.tabs.sendMessage(t.id, {
+              type: "JOB_PERSISTED_TO_DB",
+              job: message.job,
+            }, () => {
+              if (chrome.runtime.lastError) {
+                // Ignore tab error if tab is not active/ready
+              }
+            });
+          }
+        } catch (e) {
+          console.warn("Could not notify tabs of DB persistence:", e);
+        }
         sendResponse({ success: true });
       } else {
         sendResponse({ success: false, error: "Unknown message type" });

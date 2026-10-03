@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
 
     const newJob = await prisma.job.create({
       data: {
+        ...(body.id ? { id: body.id } : {}),
         title: body.title,
         company: body.company,
         location: body.location || "Remote",

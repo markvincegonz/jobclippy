@@ -73,20 +73,35 @@ export const JOB_EXTRACTION_JSON_SCHEMA = {
 
 export function buildExtractionPrompt(
   rawText: string,
-  partialFields?: Partial<AiExtractedJob>
+  partialFields?: Partial<AiExtractedJob>,
+  rawUrl?: string
 ): { system: string; user: string } {
   const hints = partialFields
     ? `\nClient pre-extracted hints (use if confident): ${JSON.stringify(partialFields)}`
     : "";
+  const urlContext = rawUrl ? `\nActive Job URL: ${rawUrl}` : "";
 
   const system =
     "You are an expert technical recruiting parser. Extract structured job posting details from unstructured text.\n" +
+    "You MUST return a valid JSON object matching the following structure:\n" +
+    "{\n" +
+    '  "title": "string",\n' +
+    '  "company": "string",\n' +
+    '  "location": "string",\n' +
+    '  "workplaceType": "remote" | "hybrid" | "on-site",\n' +
+    '  "salary": "string",\n' +
+    '  "seniority": "intern" | "entry" | "mid" | "senior" | "lead" | "executive",\n' +
+    '  "skills": ["string"],\n' +
+    '  "experienceYears": number,\n' +
+    '  "summary": "string"\n' +
+    "}\n" +
     "Rules:\n" +
     "- Normalize salary into clean compact format (e.g. '$130K–$160K', 'PHP 80K–PHP 110K/mo'). If absent, use 'Salary not listed'.\n" +
     "- Extract top technical tools, languages, and frameworks as standardized skill tags.\n" +
-    "- Do not include markdown formatting or hallucinated requirements.";
+    "- Disambiguation: If the text contains multiple job listings or a search results sidebar alongside an expanded job details pane, extract ONLY the specific job matching the target URL or expanded description pane. Discard secondary search result cards.\n" +
+    "- Do not include markdown formatting or hallucinated requirements. Pure JSON only.";
 
-  const user = `Job Posting Text:\n---\n${rawText.slice(0, 4500)}\n---${hints}`;
+  const user = `Job Posting Text:\n---\n${rawText.slice(0, 4500)}\n---${hints}${urlContext}`;
 
   return { system, user };
 }
