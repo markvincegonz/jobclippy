@@ -83,7 +83,6 @@ function drawIcon(x, y, w, h) {
     const clipY = dy / (h * 0.35);
 
     // Approximate paperclip wire by distance to oval tracks
-    const inOuterTrack = Math.abs(clipX) < 0.5 && clipY > -0.6 && clipY < 0.6;
     const isTopCurve = Math.abs(Math.sqrt(clipX * clipX * 1.5 + Math.pow(clipY + 0.4, 2)) - 0.4) < 0.15;
     const isBottomCurve = Math.abs(Math.sqrt(clipX * clipX * 1.5 + Math.pow(clipY - 0.4, 2)) - 0.3) < 0.15;
     const isWire = isTopCurve || isBottomCurve || (Math.abs(Math.abs(clipX) - 0.35) < 0.12 && clipY > -0.4 && clipY < 0.4);

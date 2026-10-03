@@ -41,9 +41,9 @@ export function canonicalizeUrl(rawUrl: string): string {
 
   try {
     const parsed = new URL(rawUrl.trim());
-    let protocol = parsed.protocol.toLowerCase();
-    let hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
-    let pathname = parsed.pathname;
+    const protocol = parsed.protocol.toLowerCase();
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    const pathname = parsed.pathname;
 
     // 1. Indeed domain normalization
     if (hostname.includes("indeed.")) {

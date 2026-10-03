@@ -8,6 +8,23 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: jobclippy
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d jobclippy"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5433/jobclippy?schema=public"
+      NEXT_PUBLIC_API_URL: "http://localhost:3000"
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
@@ -15,6 +32,14 @@ jobs:
         node-version: lts/*
     - name: Install dependencies
       run: npm ci
+    - name: Create environment configuration
+      run: |
+        echo "DATABASE_URL=postgresql://postgres:postgrespassword@localhost:5433/jobclippy?schema=public" > .env.local
+        echo "NEXT_PUBLIC_API_URL=http://localhost:3000" >> .env.local
+    - name: Synchronize Prisma schema and seed database
+      run: |
+        npx prisma db push
+        npm run db:seed
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
     - name: Run Playwright tests

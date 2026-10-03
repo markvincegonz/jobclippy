@@ -134,7 +134,6 @@ export async function POST() {
       const { notes, ...jobData } = job;
       await prisma.job.create({
         data: {
-          id: job.id,
           ...jobData,
           notes: {
             create: notes.map((n) => ({

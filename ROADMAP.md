@@ -167,6 +167,10 @@
   - Database-first web application store (`src/lib/job-store.tsx`) eliminating temporary storage divergence.
   - PostgreSQL-backed extraction cache (`src/lib/cache/prisma-store.ts`) via Prisma replacing ephemeral disk file cache.
   - Full automated validation in [extension-db-direct.spec.ts](tests/extension-db-direct.spec.ts).
+- [x] **Continuous Integration & Automated Testing Pipeline (GitHub Actions)**
+  - Fully containerized PostgreSQL service (`postgres:16-alpine`) in GitHub Actions workflow with health checks.
+  - Automated Prisma schema synchronization (`npx prisma db push`) and seed population (`npm run db:seed`) prior to test execution.
+  - Complete 52/52 Playwright E2E test suite execution with web server timeout safeguards in CI.
 
 ---
 

@@ -62,10 +62,10 @@ export async function POST(req: NextRequest) {
 
     // 2. Layer 3: AI Extraction (Server Environment Only: DeepSeek -> OpenAI -> Gemini -> Fallback)
     let deepseekKey = process.env.DEEPSEEK_API_KEY;
-    if (!deepseekKey) {
+    if (!deepseekKey && process.env.NODE_ENV !== "production") {
       try {
         for (const envFile of [".env.local", ".env"]) {
-          const envPath = path.resolve(process.cwd(), envFile);
+          const envPath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), envFile);
           if (fs.existsSync(envPath)) {
             const content = fs.readFileSync(envPath, "utf-8");
             const match = content.match(/^DEEPSEEK_API_KEY=(.+)$/m);

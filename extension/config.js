@@ -28,7 +28,7 @@ const CONFIG = {
         if (stored?.jobclippy_api_url) {
           this.API_BASE_URL = stored.jobclippy_api_url.replace(/\/+$/, "");
         }
-      } catch (e) {
+      } catch {
         // Fallback to default
       }
     }
