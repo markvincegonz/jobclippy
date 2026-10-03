@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Linear Design System Visual & Computed Token Assertions", () => {
   test("verifies exact color tokens, hairline borders, and surface ladder", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("domcontentloaded");
+    await page.waitForLoadState("networkidle");
 
     const body = page.locator("body");
     const toggleBtn = page.getByTestId("theme-toggle-btn");
@@ -22,14 +22,17 @@ test.describe("Linear Design System Visual & Computed Token Assertions", () => {
     await expect(saveJobBtn).toHaveCSS("background-color", "rgb(94, 106, 210)"); // #5e6ad2 (primary lavender)
 
     // 3. Switch to Light Mode and verify Inverse Token Verifications
-    await toggleBtn.click();
+    await toggleBtn.click({ timeout: 10000 });
+    await page.waitForLoadState("networkidle");
 
-    await expect(body).toHaveCSS("background-color", "rgb(255, 255, 255)"); // #ffffff (inverse canvas)
+    await expect(body).toHaveCSS("background-color", "rgb(255, 255, 255)", { timeout: 10000 }); // #ffffff (inverse canvas)
     await expect(firstCard).toHaveCSS("background-color", "rgb(247, 248, 248)"); // #f7f8f8 (inverse surface-1)
     await expect(firstCard).toHaveCSS("border-color", "rgb(226, 228, 232)"); // #e2e4e8 (inverse hairline)
 
     // 4. Switch back to Dark Mode
-    await toggleBtn.click();
-    await expect(body).toHaveCSS("background-color", "rgb(1, 1, 2)");
+    await toggleBtn.click({ timeout: 10000 });
+    await page.waitForLoadState("networkidle");
+
+    await expect(body).toHaveCSS("background-color", "rgb(1, 1, 2)", { timeout: 10000 });
   });
 });

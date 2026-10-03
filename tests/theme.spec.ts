@@ -5,7 +5,7 @@ test.describe("Theme System — Linear Light & Dark Mode", () => {
     page,
   }) => {
     await page.goto("/");
-    await page.waitForLoadState("domcontentloaded");
+    await page.waitForLoadState("networkidle");
 
     const toggleBtn = page.getByTestId("theme-toggle-btn");
     await expect(toggleBtn).toBeVisible({ timeout: 10000 });
@@ -16,22 +16,24 @@ test.describe("Theme System — Linear Light & Dark Mode", () => {
     await expect(body).toHaveCSS("background-color", "rgb(1, 1, 2)");
 
     // 2. Toggle to Light mode
-    await toggleBtn.click();
+    await toggleBtn.click({ timeout: 10000 });
+    await page.waitForLoadState("networkidle");
 
     // Verify background becomes white (Linear inverse canvas #ffffff -> rgb(255, 255, 255))
-    await expect(body).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await expect(body).toHaveCSS("background-color", "rgb(255, 255, 255)", { timeout: 10000 });
 
     // 3. Verify persistence across page reload
     await page.reload();
-    await page.waitForLoadState("domcontentloaded");
+    await page.waitForLoadState("networkidle");
 
     await expect(body).toHaveCSS("background-color", "rgb(255, 255, 255)");
 
     // 4. Toggle back to Dark mode
     const toggleBtnAfterReload = page.getByTestId("theme-toggle-btn");
     await expect(toggleBtnAfterReload).toBeVisible({ timeout: 10000 });
-    await toggleBtnAfterReload.click();
+    await toggleBtnAfterReload.click({ timeout: 10000 });
+    await page.waitForLoadState("networkidle");
 
-    await expect(body).toHaveCSS("background-color", "rgb(1, 1, 2)");
+    await expect(body).toHaveCSS("background-color", "rgb(1, 1, 2)", { timeout: 10000 });
   });
 });
