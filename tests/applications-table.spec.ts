@@ -17,6 +17,7 @@ test.describe("Interactive Applications Table Suite", () => {
     // Check table headers
     await expect(desktopTable.getByText("Role & Title")).toBeVisible();
     await expect(desktopTable.getByText("Company", { exact: true })).toBeVisible();
+    await expect(desktopTable.getByText("Source", { exact: true })).toBeVisible();
     await expect(desktopTable.getByText("Stage", { exact: true })).toBeVisible();
     await expect(desktopTable.getByText("Compensation", { exact: true })).toBeVisible();
 
@@ -24,7 +25,7 @@ test.describe("Interactive Applications Table Suite", () => {
     await expect(desktopTable.getByText("Senior Product Designer")).toBeVisible();
     await expect(desktopTable.getByText("LinearFlow")).toBeVisible();
     await expect(desktopTable.getByText("Senior Frontend Engineer")).toBeVisible();
-    await expect(desktopTable.getByText("CloudVanguard")).toBeVisible();
+    await expect(desktopTable.getByText("CloudVanguard", { exact: true })).toBeVisible();
   });
 
   test("sorts applications when clicking column headers", async ({ page }) => {
@@ -105,6 +106,42 @@ test.describe("Interactive Applications Table Suite", () => {
     await expect(page.getByTestId("stage-dropdown-trigger-job-2")).toContainText("offer");
   });
 
+  test("selects multiple rows, prompts Linear confirmation dialog, and deletes with undo capability", async ({
+    page,
+  }) => {
+    // Select first row
+    const checkbox1 = page.getByTestId("row-checkbox-job-1");
+    await checkbox1.click();
+
+    // Verify batch dock
+    const batchDock = page.getByTestId("batch-action-dock");
+    await expect(batchDock).toBeVisible();
+
+    // Click Delete button in batch dock
+    await page.getByTestId("batch-delete-btn").click();
+
+    // Verify styled dialog appears (not window.confirm)
+    await expect(page.getByText("Delete 1 Opportunity?")).toBeVisible();
+    await expect(page.getByText("You can undo this action immediately")).toBeVisible();
+
+    // Confirm deletion
+    await page.getByTestId("confirm-batch-delete-btn").click();
+
+    // Verify Undo toast
+    const undoToast = page.getByText("1 Opportunity Removed");
+    await expect(undoToast).toBeVisible();
+    const undoBtn = page.getByRole("button", { name: "Undo" });
+    await expect(undoBtn).toBeVisible();
+
+    // Job 1 should be gone from table
+    await expect(page.getByTestId("table-row-job-1")).not.toBeVisible();
+
+    // Click Undo to restore
+    await undoBtn.click();
+    await expect(page.getByText("Opportunities Restored")).toBeVisible();
+    await expect(page.getByTestId("table-row-job-1")).toBeVisible();
+  });
+
   test("clicking a table row opens the JobDetailSheet", async ({ page }) => {
     const desktopTable = page.getByTestId("desktop-applications-table");
     // Click on the row text (not the checkbox or dropdown)
@@ -119,7 +156,9 @@ test.describe("Interactive Applications Table Suite", () => {
     await expect(page.getByText("Personal Notes & Timeline")).toBeVisible();
 
     // Close sheet
-    await page.getByRole("button", { name: "Done" }).click();
+    const doneBtn = page.getByRole("button", { name: "Done" });
+    await doneBtn.scrollIntoViewIfNeeded();
+    await doneBtn.click();
     await expect(sheetTitle).not.toBeVisible();
   });
 
@@ -168,4 +207,66 @@ test.describe("Interactive Applications Table Suite", () => {
     );
     expect(openDiff).toBe(initialDiff);
   });
+
+  test("navigates table rows with J and K keys and shows focus indicator", async ({
+    page,
+  }) => {
+    const desktopTable = page.getByTestId("desktop-applications-table");
+    const rows = desktopTable.locator("tbody tr");
+
+    // Initially first row (index 0) has focused state
+    await expect(rows.nth(0)).toHaveAttribute("data-focused", "true");
+    await expect(rows.nth(0).getByTestId("row-focus-indicator")).toBeVisible();
+    await expect(rows.nth(1)).toHaveAttribute("data-focused", "false");
+
+    // Press 'j' to move down to row 1
+    await page.keyboard.press("j");
+    await expect(rows.nth(0)).toHaveAttribute("data-focused", "false");
+    await expect(rows.nth(1)).toHaveAttribute("data-focused", "true");
+    await expect(rows.nth(1).getByTestId("row-focus-indicator")).toBeVisible();
+
+    // Press 'j' again to move down to row 2
+    await page.keyboard.press("j");
+    await expect(rows.nth(2)).toHaveAttribute("data-focused", "true");
+
+    // Press 'k' to move back up to row 1
+    await page.keyboard.press("k");
+    await expect(rows.nth(1)).toHaveAttribute("data-focused", "true");
+    await expect(rows.nth(2)).toHaveAttribute("data-focused", "false");
+  });
+
+  test("toggles row selection using X or Space and opens detail sheet with Enter", async ({
+    page,
+  }) => {
+    const desktopTable = page.getByTestId("desktop-applications-table");
+    const rows = desktopTable.locator("tbody tr");
+
+    // Row 0 is focused by default
+    await expect(rows.nth(0)).toHaveAttribute("data-focused", "true");
+
+    // Press 'x' to select row 0
+    await page.keyboard.press("x");
+    const batchDock = page.getByTestId("batch-action-dock");
+    await expect(batchDock).toBeVisible();
+    await expect(batchDock).toContainText("1 role selected");
+
+    // Move to row 1 with 'j' and select with Space
+    await page.keyboard.press("j");
+    await page.keyboard.press("Space");
+    await expect(batchDock).toContainText("2 roles selected");
+
+    // Unselect row 1 with Space
+    await page.keyboard.press("Space");
+    await expect(batchDock).toContainText("1 role selected");
+
+    // Press Enter to open the detail sheet for the focused row (row 1)
+    await page.keyboard.press("Enter");
+    const sheetTitle = page.locator("#job-detail-title");
+    await expect(sheetTitle).toBeVisible();
+
+    // Close detail sheet with Esc
+    await page.keyboard.press("Escape");
+    await expect(sheetTitle).not.toBeVisible();
+  });
 });
+

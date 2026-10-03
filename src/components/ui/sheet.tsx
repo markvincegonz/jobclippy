@@ -8,9 +8,10 @@ interface SheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
+  panelClassName?: string;
 }
 
-export function Sheet({ open, onOpenChange, children }: SheetProps) {
+export function Sheet({ open, onOpenChange, children, panelClassName }: SheetProps) {
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && open) {
@@ -31,8 +32,14 @@ export function Sheet({ open, onOpenChange, children }: SheetProps) {
         onClick={() => onOpenChange(false)}
       />
       {/* Slide-over panel */}
-      <div className="fixed inset-y-0 right-0 z-50 flex max-w-full pl-10">
-        <div className="w-screen max-w-xl border-l border-hairline bg-surface-1 p-6 text-ink shadow-none flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300">
+      <div className="fixed inset-y-0 right-0 z-50 flex max-w-full pl-6 sm:pl-10">
+        <div
+          data-testid="sheet-panel-container"
+          className={cn(
+            "w-screen max-w-3xl border-l border-hairline bg-surface-1 p-6 text-ink shadow-none flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300",
+            panelClassName
+          )}
+        >
           {children}
         </div>
       </div>

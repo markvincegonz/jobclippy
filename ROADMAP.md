@@ -16,13 +16,13 @@
 | **Phase 4** | High-Density Interactive Applications Table | **Completed** (100%) | [applications-table](openspec/specs/applications-table/spec.md) |
 | **Phase 5** | Browser Extension (MV3 Universal Clipper) | **Completed** (100%) | [browser-extension](openspec/specs/browser-extension/spec.md), [extension-test](tests/browser-extension.spec.ts) |
 | **Phase 6** | Dockerized PostgreSQL & Prisma Backend | **Completed** (100%) | [database-persistence](openspec/specs/database-persistence/spec.md), [jobs-database-test](tests/jobs-database.spec.ts) |
-| **Phase 7** | Pipeline Velocity & Funnel Analytics | **Planned** | MVP Week 3 |
+| **Phase 7** | Pipeline Velocity & Funnel Analytics | **Completed** (100%) | [pipeline-analytics](src/components/pipeline-analytics.tsx), [analytics-test](tests/pipeline-analytics.spec.ts) |
 | **Phase 8** | AI Resume Matcher & Skill Gap Analyzer | **Planned** | Premium Layer |
-| **Phase 9** | Interview Workspace & Follow-Up Reminders | **Planned** | Assistant Layer |
+| **Phase 9** | Interview Workspace & Follow-Up Reminders | **In Progress** (65%) | [interview-workspace](src/components/job-detail-sheet.tsx), [interview-test](tests/interview-workspace.spec.ts) |
 | **Phase 10** | Backend, Auth & Full Page Suite (Login/Signup/Account) | **Planned** | MVP Week 4 |
 | **Phase 11** | SaaS Monetization, Landing Page & Launch | **Planned** | Launch Week |
 
-**Current Test Health:** 50/52 Playwright E2E tests passing (2 theme-toggle tests skipped in CI).
+**Current Test Health:** 84/86 Playwright E2E tests passing (2 theme-toggle tests skipped in CI).
 
 ---
 
@@ -49,18 +49,37 @@
 - [x] **5-Stage Kanban Workflow**
   - Columns: `Wishlist` -> `Applied` -> `Interviewing` -> `Offer` -> `Archived`.
   - Column header count badges with stage color accents.
-- [x] **HTML5 Drag-and-Drop**
-  - Reorder and move cards across columns with smooth drag states.
+- [x] **HTML5 Drag-and-Drop & Same-Column Card Reordering**
+  - Reorder and move cards across columns or within the same column with smooth drag states.
+  - Precise insertion line indicators (`drop-indicator-before` / `drop-indicator-after`) showing exact drop position when dragging cards from bottom to top or top to bottom.
   - Automatic celebratory confetti explosion when dropping a card into `Offer`.
+  - Validated in [drag-and-drop.spec.ts](tests/drag-and-drop.spec.ts).
 - [x] **Keyboard-Only Spatial Navigation**
   - `]` advances active card to the next stage.
   - `[` moves active card to the previous stage.
+- [x] **Card Hover Quick-Actions & Inline Quick Notes**
+  - Linear-style action pill revealed on card hover/focus: 1-click stage advancement (`→`), direct link opening (`↗`), quick note editor (`✎`), and options dropdown (`⋮`).
+  - Advancing cards to `Offer` via clicking advance button (`→`), keyboard shortcuts (`]`), or dropdown options triggers the unified milestone celebration: animated confetti burst and the personalized celebratory toast (`🎉 Huge Milestone: Offer Received! Congratulations on [Title] at [Company]!`), eliminating duplicate toast handlers.
+  - Inline note input expands directly on the card with autofocus, <kbd>Enter</kbd> to save and <kbd>Esc</kbd> to dismiss without opening the slide-over sheet.
+  - Validated in [drag-and-drop.spec.ts](tests/drag-and-drop.spec.ts).
 - [x] **Quick Add Modal & Smart Extraction**
   - Heuristic parser extracting: Job Title, Company, Location, Salary Range, and Skill Chips.
   - Instant job creation with immediate store reflection.
-- [x] **Job Detail Slide-Over Sheet**
+- [x] **Desktop Kanban Horizontal Scroller (>= 1024px Viewport Safeguard)**
+  - Dedicated horizontal scroll container (`data-testid="kanban-board-scroll-container"`) with custom subtle scrollbar styling (`custom-scrollbar`).
+  - Enforces `min-w-[1300px]` across 5 columns (>= 240px per column) at `lg` breakpoint when the desktop sidebar is mounted, preventing squished cards, text clipping, and item overflow.
+  - Seamless auto-centering via `scrollIntoView` when selecting stage filters/shortcuts.
+  - Clean responsive stacking maintained on mobile/tablet viewports (< 1024px).
+  - Drag-over clearance padding (`pt-3 -mt-3 px-1 -mx-1`) providing headroom inside the scroll container so columns scaling up and displaying highlight rings on drag-hover never clip at the top edge.
+  - Validated in [url-routing-and-source-badges.spec.ts](tests/url-routing-and-source-badges.spec.ts).
+- [x] **Job Detail Slide-Over Sheet (1.5× Expanded Width)**
   - Detailed view showing full job description, parsed skills, compensation, and link.
+  - Widened drawer container (`max-w-3xl`, 768px, ~1.5× wider) for comfortable multi-paragraph reading with responsive mobile constraints.
   - Editable rich personal notes with timestamped updates.
+- [x] **Job Source Brand Indicators & Minimalist Favicons**
+  - Dynamic hostname-to-brand derivation (`src/lib/job-source.ts`) identifying platforms like LinkedIn, Indeed, JobStreet, Seek, Glassdoor, and custom career portals.
+  - Minimalist favicon + brand text label (not a colored pill) integrated into JobCard footers, ApplicationsTable rows, and JobDetailSheet header.
+  - Validated in [job-source.spec.ts](tests/job-source.spec.ts) and [url-routing-and-source-badges.spec.ts](tests/url-routing-and-source-badges.spec.ts).
 - [x] **Error Safeguards & Safety**
   - Undo toast on card deletion with 5-second restore window.
   - Destructive delete confirmation modal in Detail Sheet.
@@ -69,6 +88,11 @@
 ---
 
 ### Phase 3: Admin Shell & Power Navigation
+- [x] **URL-Based View Routing & Deep Linking**
+  - Dedicated App Router routes: `/board` (Pipeline Board), `/applications` (All Applications), `/analytics` (Funnel Analytics), and `/settings` (Command Center Settings), with root `/` redirecting to `/board`.
+  - Next.js `<Link>` navigation with active view highlighting derived from `usePathname()`.
+  - URL search parameter synchronization for query search (`q`) and stage filtering (`stage`), enabling shareable filtered URLs, bookmarking, and native browser back/forward history.
+  - Validated in [admin-navigation.spec.ts](tests/admin-navigation.spec.ts) and [url-routing-and-source-badges.spec.ts](tests/url-routing-and-source-badges.spec.ts).
 - [x] **Linear-Grade Collapsible Sidebar**
   - Expand/collapse toggle preserving icon rail in collapsed state.
   - Persistent sidebar state stored in `localStorage` without hydration mismatch.
@@ -81,19 +105,30 @@
   - Active view breadcrumbs and active stage filter chip with clear button.
   - Quick "+ New Job" action button.
 - [x] **Stage Filter Shortcuts**
-  - Clickable stage items in sidebar highlighting and filtering corresponding board column or table view.
+  - Clickable stage items in sidebar highlighting and filtering corresponding board column or table view via URL `stage` search parameter.
+- [x] **Global Keyboard Shortcuts Cheatsheet Modal (`?` hotkey)**
+  - Pressing `?` anywhere outside input fields opens the Linear-styled `<KeyboardShortcutsModal>`.
+  - Structured keycap guide categorizing navigation (`/`, `?`, `[`, `]`, `Esc`), pipeline accelerators (`C`, `[`, `]`, drag-and-drop), and table triage controls.
+  - Dedicated shortcuts trigger buttons in both TopContextBar and Sidebar footer for accessible non-keyboard discovery.
+  - Fully validated in [keyboard-shortcuts.spec.ts](tests/keyboard-shortcuts.spec.ts).
 - [x] **Data Backup & Demo Reset**
   - JSON data export downloading full opportunities database.
   - Demonstration reset restoring curated sample dataset.
+- [x] **Linear-Grade Command Palette (<kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>)**
+  - Spotlight modal with real-time fuzzy filtering across navigation routes, high-priority actions, and tracked job opportunities.
+  - Full keyboard control (<kbd>↑</kbd> / <kbd>↓</kbd> / <kbd>Enter</kbd> / <kbd>Esc</kbd>) with looping selection and mouse hover synchronization.
+  - Direct deep-links to slide-over `JobDetailSheet` for any matched role, instant view switching (`/board`, `/applications`, `/analytics`, `/settings`), theme toggling, quick add opening, and data backup triggers.
+  - Dedicated trigger button in TopContextBar displaying `<kbd>⌘K</kbd>`.
+  - Fully validated in [command-palette.spec.ts](tests/command-palette.spec.ts).
 
 ---
 
 ### Phase 4: High-Density Interactive Applications Table
 - [x] **High-Density Linear Tabular Layout**
-  - Clean table presenting Title, Company, Stage, Compensation, Location, Skills, and Actions.
+  - Clean table presenting Title, Company, dedicated Source column (with brand favicon & label), Stage, Compensation, Location, Skills, and Actions.
   - Subtle row hover highlights and hairline dividers.
 - [x] **Multi-Column Sorting**
-  - Three-state sorting (asc, desc, neutral) across Role, Company, Stage, and Salary.
+  - Three-state sorting (asc, desc, neutral) across Role, Company, Source, Stage, and Salary.
   - Visual sort indicator icons with active column highlighting.
 - [x] **In-line Stage Selector Dropdown**
   - Portaled dropdown menu directly in each table row.
@@ -103,11 +138,22 @@
   - Row checkboxes and "Select All" header checkbox.
   - Floating batch action toolbar for bulk transitioning selected jobs to any stage.
   - Selection count and bulk clear trigger.
+  - Destructive batch delete action with Linear-styled `<Dialog>` confirmation and 6-second Undo toast restoration.
 - [x] **Responsive Mobile Stacked Card-List**
   - Automatic transformation into touch-friendly stacked card list on mobile screens (<768px).
   - Retains in-row stage dropdown and click-to-open sheet trigger.
 - [x] **Row Click Detail Sheet**
   - Clicking any table row opens the slide-over `JobDetailSheet`.
+- [x] **Full-Width Viewport Container Expansion (`w-full`)**
+  - Removed artificial page-width constraints (`max-w-7xl`, `max-w-[1600px]`, `max-w-4xl`) across `/applications`, `/analytics`, `/board`, and `/settings`.
+  - Page content containers now span the full viewport width (`w-full`) with balanced padding (`p-4 sm:p-6`), eliminating awkward gutters and enabling high-density data display on large displays.
+- [x] **Table J/K Keyboard Navigation & Quick Selection**
+  - Linear-grade keyboard spatial navigation across `/applications`: `J` / `ArrowDown` and `K` / `ArrowUp` to navigate rows with automatic smooth scrolling into view.
+  - Distinct active row visual indicator (`data-focused`, primary focus bar and subtle surface lift).
+  - Quick multi-row selection via `X` or `Space`, instantly invoking the floating batch action toolbar.
+  - `Enter` accelerator to immediately open the 1.5× wide `JobDetailSheet` for the focused role.
+  - Full keyboard shortcuts discovery integration in `KeyboardShortcutsModal` (`?` cheatsheet) and header badge cues.
+  - Validated in [applications-table.spec.ts](tests/applications-table.spec.ts) and [keyboard-shortcuts.spec.ts](tests/keyboard-shortcuts.spec.ts).
 
 ---
 
@@ -164,29 +210,36 @@
 - [x] **Direct Database Persistence & Centralized Environment Configuration**
   - Direct `POST /api/jobs` extension save pipeline into PostgreSQL with offline retry fallback.
   - Centralized `extension/config.js` resolving `NEXT_PUBLIC_API_URL` without hardcoded URLs.
-  - Database-first web application store (`src/lib/job-store.tsx`) eliminating temporary storage divergence.
-  - PostgreSQL-backed extraction cache (`src/lib/cache/prisma-store.ts`) via Prisma replacing ephemeral disk file cache.
   - Full automated validation in [extension-db-direct.spec.ts](tests/extension-db-direct.spec.ts).
 - [x] **Continuous Integration & Automated Testing Pipeline (GitHub Actions)**
   - Fully containerized PostgreSQL service (`postgres:16-alpine`) in GitHub Actions workflow with health checks.
   - Automated Prisma schema synchronization (`npx prisma db push`) and seed population (`npm run db:seed`) prior to test execution.
   - Complete 52/52 Playwright E2E test suite execution with web server timeout safeguards, safe API body parsing, and explicit hydration synchronization in CI.
+- [x] **Pure PostgreSQL Database-Driven Data Layer (Elimination of Mock Data)**
+  - Completely purged hardcoded client mock job dataset (`SEED_JOBS`) from [job-store.tsx](src/lib/job-store.tsx).
+  - Web application pages (`/board`, `/applications`, `/analytics`, `/settings`) now load authoritatively from PostgreSQL via `/api/jobs` without client-side mock fallbacks.
+  - Initial/unhydrated state defaults cleanly to an empty set (`EMPTY_JOBS`), rendering native Linear empty states when the database is empty.
+  - Local optimistic state and clipper sync events (`jobclippy:synced`) cleanly merge with incoming database payloads without data wiping or race conditions.
+  - Database re-seeding handled strictly through PostgreSQL Prisma seeder ([seed.ts](prisma/seed.ts)) and dedicated seeder endpoint ([reset/route.ts](src/app/api/jobs/reset/route.ts)).
+  - Validated across all 76 E2E tests including [extension-db-direct.spec.ts](tests/extension-db-direct.spec.ts) and [drag-and-drop.spec.ts](tests/drag-and-drop.spec.ts).
 
 ---
 
 ### Phase 7: Pipeline Velocity & Funnel Analytics View
-- [ ] **Interactive Conversion Funnel**
-  - Visual funnel graph: Wishlist -> Applied -> Screening -> Interviewing -> Offer.
-  - Conversion percentage calculation between each stage.
-- [ ] **Pipeline Velocity & Bottleneck Detection**
-  - Average days spent in each stage (e.g., "Avg 14 days in Applied").
-  - Stale application alerts (roles inactive for >14 days).
-- [ ] **Salary Distribution & Benchmark Metrics**
-  - Distribution visualizer showing user's target compensation vs market postings.
-  - Highest, median, and average salary across active opportunities.
-- [ ] **Skills Demand Breakdown**
-  - Top 10 most demanded skills across all saved jobs.
-  - Visual frequency chips (e.g. React: 80%, TypeScript: 75%, AWS: 50%).
+- [x] **Interactive Stepped Conversion Funnel**
+  - Visual funnel graph: `Wishlist (Saved)` -> `Applied (Submitted)` -> `Interviewing (Screens & Loops)` -> `Offer (Negotiations)`.
+  - Proportional stage width bars colored with Linear stage tokens.
+  - Step-by-step through-rates and drop-off diagnosis connectors between stages.
+  - Direct deep-link filtering into `/applications?stage={stageId}` from each funnel step.
+- [x] **Executive Conversion & Velocity Metrics**
+  - High-impact KPI tiles: Wishlist Conversion Rate, Screen & Loop Rate, Offers Received, and Total Offer Yield.
+  - Overall pipeline velocity percentage tracker.
+- [x] **Channel Attribution & Source Yield Breakdown**
+  - Aggregation by job board/platform (LinkedIn, Indeed, JobStreet, Seek, Direct Portals).
+  - Minimalist brand favicons, volume shares, and active offer count per source.
+- [x] **Candidate Momentum & Pipeline Health Checklist**
+  - Contextual advice cards for active negotiations, in-review follow-ups, and target wishlist triage.
+  - Fully validated in [pipeline-analytics.spec.ts](tests/pipeline-analytics.spec.ts).
 
 ---
 
@@ -205,9 +258,17 @@
 ---
 
 ### Phase 9: Interview Workspace & Follow-Up Reminders
-- [ ] **Interview Scheduler & Calendar Export**
-  - Date and time picker for upcoming interviews in `JobDetailSheet`.
-  - One-click `.ics` calendar file download for Google Calendar / Apple Calendar.
+- [x] **Interview Scheduler, Countdown Badges & 1-Click Calendar Sync**
+  - Native datetime picker for upcoming technical screens and round schedules in `JobDetailSheet`.
+  - Dynamic countdown badges on Kanban card footers (`JobCard`) and Applications Table rows (`ApplicationsTable`) indicating interview proximity ("Today", "Tomorrow", "In X days", or scheduled date).
+  - 1-Click Google Calendar event generator with pre-filled title, location, and description query parameters.
+  - RFC 5545 standard `.ics` calendar file download (`downloadICalFile`) for Apple Calendar, Outlook, and Google Calendar.
+  - Fully validated in [interview-workspace.spec.ts](tests/interview-workspace.spec.ts).
+- [x] **Opportunity Activity Timeline & Audit Trail**
+  - Chronological vertical hairline audit trail in `JobDetailSheet` tracking lifecycle milestones (`Opportunity Saved`, `Application Submitted`, `Interview Scheduled`, `Offer Received`, and `Archived`).
+  - Milestone icons, timestamp formatting, and event counter badge.
+  - Seamless real-time personal note logging appended directly to the top of the timeline.
+  - Fully validated in [interview-workspace.spec.ts](tests/interview-workspace.spec.ts).
 - [ ] **Automated Follow-Up Reminders**
   - 7-day rule reminder for applications sitting in `Applied` stage.
   - Post-interview thank-you note reminder (24 hours after scheduled interview).

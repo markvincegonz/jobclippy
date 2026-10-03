@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   Menu,
   Plus,
@@ -8,6 +9,7 @@ import {
   X,
   ChevronRight,
   PanelLeft,
+  Keyboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,14 +18,16 @@ import { AdminView } from "@/components/sidebar";
 import { cn } from "@/lib/utils";
 
 interface TopContextBarProps {
-  activeView: AdminView;
+  activeView?: AdminView;
   selectedStage?: JobStage | null;
   onClearStageFilter?: () => void;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  onOpenQuickAdd: () => void;
-  onToggleMobileDrawer: () => void;
-  isSidebarCollapsed: boolean;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
+  onOpenQuickAdd?: () => void;
+  onOpenShortcuts?: () => void;
+  onOpenCommandPalette?: () => void;
+  onToggleMobileDrawer?: () => void;
+  isSidebarCollapsed?: boolean;
   onToggleSidebarCollapse?: () => void;
   className?: string;
 }
@@ -50,12 +54,57 @@ export function TopContextBar({
   searchQuery,
   onSearchChange,
   onOpenQuickAdd,
+  onOpenShortcuts,
+  onOpenCommandPalette,
   onToggleMobileDrawer,
-  isSidebarCollapsed,
+  isSidebarCollapsed = false,
   onToggleSidebarCollapse,
   className,
 }: TopContextBarProps) {
-  const currentView = VIEW_TITLES[activeView];
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const detectedView: AdminView = React.useMemo(() => {
+    if (pathname?.startsWith("/applications")) return "table";
+    if (pathname?.startsWith("/analytics")) return "analytics";
+    if (pathname?.startsWith("/settings")) return "settings";
+    return "board";
+  }, [pathname]);
+
+  const currentViewKey = activeView || detectedView;
+  const currentView = VIEW_TITLES[currentViewKey] || VIEW_TITLES.board;
+
+  const currentStage =
+    selectedStage !== undefined ? selectedStage : (searchParams?.get("stage") as JobStage) || null;
+
+  const currentQuery = searchQuery !== undefined ? searchQuery : searchParams?.get("q") || "";
+
+  const handleClearStage = () => {
+    if (onClearStageFilter) {
+      onClearStageFilter();
+    } else {
+      const nextParams = new URLSearchParams(searchParams ? searchParams.toString() : "");
+      nextParams.delete("stage");
+      const target = nextParams.toString() ? `${pathname}?${nextParams.toString()}` : pathname;
+      router.push(target);
+    }
+  };
+
+  const handleSearchChange = (val: string) => {
+    if (onSearchChange) {
+      onSearchChange(val);
+    } else {
+      const nextParams = new URLSearchParams(searchParams ? searchParams.toString() : "");
+      if (val) {
+        nextParams.set("q", val);
+      } else {
+        nextParams.delete("q");
+      }
+      const target = nextParams.toString() ? `${pathname}?${nextParams.toString()}` : pathname;
+      router.replace(target, { scroll: false });
+    }
+  };
 
   return (
     <header
@@ -68,16 +117,18 @@ export function TopContextBar({
       {/* Left Area: Mobile Trigger, Desktop Collapse Rail, Breadcrumbs */}
       <div className="flex items-center gap-2 min-w-0">
         {/* Mobile Hamburger Toggle (hidden on lg+) */}
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          data-testid="mobile-sidebar-toggle-btn"
-          onClick={onToggleMobileDrawer}
-          className="lg:hidden h-8 w-8 text-ink-muted hover:text-ink hover:bg-surface-2"
-          aria-label="Open mobile navigation"
-        >
-          <Menu className="h-4 w-4" />
-        </Button>
+        {onToggleMobileDrawer && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            data-testid="mobile-sidebar-toggle-btn"
+            onClick={onToggleMobileDrawer}
+            className="lg:hidden h-8 w-8 text-ink-muted hover:text-ink hover:bg-surface-2"
+            aria-label="Open mobile navigation"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+        )}
 
         {/* Expand Sidebar Icon on Desktop if Collapsed */}
         {isSidebarCollapsed && onToggleSidebarCollapse && (
@@ -99,14 +150,14 @@ export function TopContextBar({
           <ChevronRight className="h-3 w-3 text-ink-subtle shrink-0" />
           <span className="text-ink font-medium truncate">{currentView.title}</span>
 
-          {selectedStage && (
+          {currentStage && (
             <>
               <ChevronRight className="h-3 w-3 text-ink-subtle shrink-0" />
               <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-surface-2 border border-hairline text-primary font-medium">
-                <span>{STAGE_NAMES[selectedStage]}</span>
+                <span>{STAGE_NAMES[currentStage]}</span>
                 <button
                   type="button"
-                  onClick={onClearStageFilter}
+                  onClick={handleClearStage}
                   aria-label="Clear stage filter"
                   className="hover:text-ink text-ink-muted cursor-pointer"
                 >
@@ -126,24 +177,60 @@ export function TopContextBar({
           <Input
             id="job-search-input"
             data-testid="job-search-input"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
+            value={currentQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search roles, skills, companies..."
             className="pl-8 pr-2.5 h-7 text-xs bg-surface-1 border-hairline focus:border-primary/50"
           />
         </div>
 
+        {/* Command Palette Trigger Button */}
+        {onOpenCommandPalette && (
+          <button
+            type="button"
+            id="topbar-command-palette-btn"
+            data-testid="topbar-command-palette-btn"
+            onClick={onOpenCommandPalette}
+            title="Command Palette (Cmd+K / Ctrl+K)"
+            aria-label="Open Command Palette"
+            className="hidden sm:inline-flex items-center gap-1.5 px-2 h-7 rounded-md border border-hairline bg-surface-1 hover:bg-surface-2 text-ink-muted hover:text-ink text-xs transition-colors cursor-pointer"
+          >
+            <span className="text-[11px] text-ink-subtle">Command</span>
+            <kbd className="text-[10px] font-mono px-1 py-0.5 rounded border border-hairline bg-surface-2 text-ink-muted">
+              ⌘K
+            </kbd>
+          </button>
+        )}
+
+        {/* Keyboard Shortcuts Trigger Button */}
+        {onOpenShortcuts && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            id="topbar-shortcuts-btn"
+            data-testid="topbar-shortcuts-btn"
+            onClick={onOpenShortcuts}
+            title="Keyboard Shortcuts (?)"
+            aria-label="Keyboard Shortcuts"
+            className="h-7 w-7 text-ink-muted hover:text-ink hover:bg-surface-2 cursor-pointer"
+          >
+            <Keyboard className="h-3.5 w-3.5" />
+          </Button>
+        )}
+
         {/* Quick Add Opportunity Button */}
-        <Button
-          size="sm"
-          id="quick-add-btn"
-          data-testid="quick-add-btn"
-          onClick={onOpenQuickAdd}
-          className="h-7 px-2.5 text-xs gap-1.5 bg-primary text-white hover:bg-primary-hover shadow-xs cursor-pointer"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Add Job</span>
-        </Button>
+        {onOpenQuickAdd && (
+          <Button
+            size="sm"
+            id="quick-add-btn"
+            data-testid="quick-add-btn"
+            onClick={onOpenQuickAdd}
+            className="h-7 px-2.5 text-xs gap-1.5 bg-primary text-white hover:bg-primary-hover shadow-xs cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Add Job</span>
+          </Button>
+        )}
       </div>
     </header>
   );

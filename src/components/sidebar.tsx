@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Columns3,
   TableProperties,
@@ -15,6 +17,7 @@ import {
   Calendar,
   CheckCircle2,
   Archive,
+  Keyboard,
 } from "lucide-react";
 import { ClippyMascot } from "@/components/clippy-mascot";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -24,14 +27,15 @@ import { cn } from "@/lib/utils";
 export type AdminView = "board" | "table" | "analytics" | "settings";
 
 interface SidebarProps {
-  activeView: AdminView;
-  onSelectView: (view: AdminView) => void;
+  activeView?: AdminView;
+  onSelectView?: (view: AdminView) => void;
   selectedStage?: JobStage | null;
   onSelectStage?: (stage: JobStage | null) => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onOpenResetConfirm?: () => void;
   onOpenQuickAdd?: () => void;
+  onOpenShortcuts?: () => void;
   className?: string;
 }
 
@@ -57,9 +61,23 @@ export function Sidebar({
   onToggleCollapse,
   onOpenResetConfirm,
   onOpenQuickAdd,
+  onOpenShortcuts,
   className,
 }: SidebarProps) {
   const { jobs } = useJobStore();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const detectedView: AdminView = React.useMemo(() => {
+    if (pathname?.startsWith("/applications")) return "table";
+    if (pathname?.startsWith("/analytics")) return "analytics";
+    if (pathname?.startsWith("/settings")) return "settings";
+    return "board";
+  }, [pathname]);
+
+  const currentActiveView = activeView || detectedView;
+  const currentSelectedStage =
+    selectedStage !== undefined ? selectedStage : (searchParams?.get("stage") as JobStage) || null;
 
   const counts = React.useMemo(() => {
     return {
@@ -130,17 +148,17 @@ export function Sidebar({
             </div>
           )}
 
-          <button
-            type="button"
+          <Link
+            href="/board"
             data-testid="nav-board-btn"
             onClick={() => {
-              onSelectView("board");
+              onSelectView?.("board");
               onSelectStage?.(null);
             }}
             title={isCollapsed ? "Kanban Board" : undefined}
             className={cn(
               "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer text-left",
-              activeView === "board" && !selectedStage
+              currentActiveView === "board" && !currentSelectedStage
                 ? "bg-surface-2 text-ink shadow-2xs border border-hairline"
                 : "text-ink-muted hover:text-ink hover:bg-surface-2/60 border border-transparent",
               isCollapsed && "justify-center px-0 py-2"
@@ -153,16 +171,16 @@ export function Sidebar({
                 {counts.total - counts.archived}
               </span>
             )}
-          </button>
+          </Link>
 
-          <button
-            type="button"
+          <Link
+            href="/applications"
             data-testid="nav-table-btn"
-            onClick={() => onSelectView("table")}
+            onClick={() => onSelectView?.("table")}
             title={isCollapsed ? "Applications Table" : undefined}
             className={cn(
               "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer text-left",
-              activeView === "table"
+              currentActiveView === "table"
                 ? "bg-surface-2 text-ink shadow-2xs border border-hairline"
                 : "text-ink-muted hover:text-ink hover:bg-surface-2/60 border border-transparent",
               isCollapsed && "justify-center px-0 py-2"
@@ -175,16 +193,16 @@ export function Sidebar({
                 Table
               </span>
             )}
-          </button>
+          </Link>
 
-          <button
-            type="button"
+          <Link
+            href="/analytics"
             data-testid="nav-analytics-btn"
-            onClick={() => onSelectView("analytics")}
+            onClick={() => onSelectView?.("analytics")}
             title={isCollapsed ? "Stage Analytics" : undefined}
             className={cn(
               "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer text-left",
-              activeView === "analytics"
+              currentActiveView === "analytics"
                 ? "bg-surface-2 text-ink shadow-2xs border border-hairline"
                 : "text-ink-muted hover:text-ink hover:bg-surface-2/60 border border-transparent",
               isCollapsed && "justify-center px-0 py-2"
@@ -192,7 +210,7 @@ export function Sidebar({
           >
             <BarChart3 className="h-4 w-4 shrink-0 text-ink-muted" />
             {!isCollapsed && <span className="truncate flex-1">Analytics</span>}
-          </button>
+          </Link>
         </div>
 
         {/* Pipeline Stage Shortcuts */}
@@ -204,18 +222,25 @@ export function Sidebar({
           )}
 
           {STAGE_CONFIG.map((stage) => {
-            const isStageActive = selectedStage === stage.id && activeView === "board";
+            const isStageActive = currentSelectedStage === stage.id && (currentActiveView === "board" || currentActiveView === "table");
             const count = counts[stage.id];
 
+            const currentPath = pathname?.startsWith("/applications") ? "/applications" : "/board";
+            const currentQ = searchParams?.get("q");
+            const nextParams = new URLSearchParams();
+            if (currentQ) nextParams.set("q", currentQ);
+            if (!isStageActive) nextParams.set("stage", stage.id);
+            const stageHref = nextParams.toString() ? `${currentPath}?${nextParams.toString()}` : currentPath;
+
             return (
-              <button
+              <Link
                 key={stage.id}
-                type="button"
+                href={stageHref}
                 role="tab"
                 aria-selected={isStageActive}
                 data-testid={`stage-shortcut-${stage.id}`}
                 onClick={() => {
-                  onSelectView("board");
+                  onSelectView?.(currentActiveView === "table" ? "table" : "board");
                   onSelectStage?.(isStageActive ? null : stage.id);
                 }}
                 title={isCollapsed ? `${stage.label} (${count})` : undefined}
@@ -237,7 +262,7 @@ export function Sidebar({
                     {count}
                   </span>
                 )}
-              </button>
+              </Link>
             );
           })}
         </div>
@@ -257,14 +282,14 @@ export function Sidebar({
           </button>
         )}
 
-        <button
-          type="button"
+        <Link
+          href="/settings"
           data-testid="nav-settings-btn"
-          onClick={() => onSelectView("settings")}
+          onClick={() => onSelectView?.("settings")}
           title={isCollapsed ? "Settings" : undefined}
           className={cn(
             "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer text-left",
-            activeView === "settings"
+            currentActiveView === "settings"
               ? "bg-surface-2 text-ink shadow-2xs border border-hairline"
               : "text-ink-muted hover:text-ink hover:bg-surface-2/60 border border-transparent",
             isCollapsed && "justify-center px-0 py-2"
@@ -272,7 +297,7 @@ export function Sidebar({
         >
           <Settings className="h-4 w-4 shrink-0 text-ink-muted" />
           {!isCollapsed && <span className="truncate flex-1">Settings</span>}
-        </button>
+        </Link>
 
         {onOpenResetConfirm && !isCollapsed && (
           <button
@@ -284,6 +309,27 @@ export function Sidebar({
           >
             <RotateCcw className="h-3.5 w-3.5 shrink-0 text-ink-subtle" />
             <span className="truncate flex-1">Reset Demo</span>
+          </button>
+        )}
+
+        {onOpenShortcuts && (
+          <button
+            type="button"
+            data-testid="sidebar-shortcuts-btn"
+            onClick={onOpenShortcuts}
+            title={isCollapsed ? "Keyboard Shortcuts (?)" : undefined}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-ink-muted hover:text-ink hover:bg-surface-2/60 transition-colors cursor-pointer border border-transparent text-left",
+              isCollapsed && "justify-center px-0 py-2"
+            )}
+          >
+            <Keyboard className="h-4 w-4 shrink-0 text-ink-subtle" />
+            {!isCollapsed && <span className="truncate flex-1">Shortcuts</span>}
+            {!isCollapsed && (
+              <kbd className="px-1 py-0.5 rounded bg-surface-2 border border-hairline font-mono text-[10px] text-ink-subtle">
+                ?
+              </kbd>
+            )}
           </button>
         )}
 

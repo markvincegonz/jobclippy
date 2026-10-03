@@ -110,16 +110,17 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogClose onClick={() => onOpenChange(false)} />
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <span>Save New Opportunity</span>
-        </DialogTitle>
-        <DialogDescription>
-          Clip a job posting using smart detection or fill in the details manually.
-        </DialogDescription>
-      </DialogHeader>
+      <div data-testid="quick-add-modal">
+        <DialogClose onClick={() => onOpenChange(false)} />
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span>Save New Opportunity</span>
+          </DialogTitle>
+          <DialogDescription>
+            Clip a job posting using smart detection or fill in the details manually.
+          </DialogDescription>
+        </DialogHeader>
 
       {/* Tabs */}
       <div className="flex border-b border-hairline my-4">
@@ -288,6 +289,7 @@ export function QuickAddModal({ open, onOpenChange }: QuickAddModalProps) {
           </DialogFooter>
         </form>
       )}
+      </div>
     </Dialog>
   );
 }

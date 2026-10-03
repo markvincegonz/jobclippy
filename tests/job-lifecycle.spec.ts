@@ -90,7 +90,7 @@ test.describe("Job Hunt Command Center Lifecycle & Component Suite", () => {
     // 6. Test Search Filtering
     const searchInput = page.getByTestId("job-search-input");
     await searchInput.fill("Vercel");
-    await expect(page.getByText("Staff Frontend Infrastructure Engineer")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Staff Frontend Infrastructure Engineer" })).toBeVisible();
     await expect(page.getByText("Senior Product Designer")).not.toBeVisible();
 
     // Clear search

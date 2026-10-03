@@ -103,15 +103,15 @@ const SEED_DATA = [
   },
   {
     id: "job-5",
-    title: "Staff Machine Learning Engineer",
-    company: "Cortex Synthetics",
-    location: "New York, NY",
-    salary: "$190K–$230K",
+    title: "Mobile App Developer",
+    company: "NextWave Studio",
+    location: "Austin, TX (On-site)",
+    salary: "$110K–$130K",
     stage: JobStage.archived,
-    skills: ["PyTorch", "Transformers", "CUDA", "C++", "Python", "MLOps"],
+    skills: ["React", "TypeScript", "REST APIs", "Git"],
     description:
-      "Research and scale foundational reasoning models. Fine-tuning multi-modal architectures for enterprise clients.",
-    url: "https://cortexsynthetics.ai/roles/staff-mle",
+      "Develop cross-platform consumer apps. Requires strong UI execution and REST API consumption.",
+    url: "https://nextwave.dev/jobs/mobile",
     notes: [
       {
         id: "note-5",
@@ -120,7 +120,6 @@ const SEED_DATA = [
       },
     ],
     createdAt: new Date("2026-09-01T10:00:00.000Z"),
-    appliedAt: new Date("2026-09-03T11:00:00.000Z"),
   },
 ];
 
