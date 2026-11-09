@@ -113,15 +113,18 @@ async function main() {
   console.log("Seeding PostgreSQL database...");
   await prisma.jobNote.deleteMany({});
   await prisma.job.deleteMany({});
-  for (const job of SEED_JOBS) {
+  for (let i = 0; i < SEED_JOBS.length; i++) {
+    const job = SEED_JOBS[i];
     const { notes, ...jobData } = job;
     await prisma.job.upsert({
       where: { id: job.id },
       update: {
         ...jobData,
+        position: i * 1000.0,
       },
       create: {
         ...jobData,
+        position: i * 1000.0,
         notes: {
           create: notes.map((n) => ({
             id: n.id,

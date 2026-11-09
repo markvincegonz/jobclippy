@@ -129,11 +129,13 @@ export async function POST() {
     await prisma.jobNote.deleteMany({});
     await prisma.job.deleteMany({});
 
-    for (const job of SEED_DATA) {
+    for (let i = 0; i < SEED_DATA.length; i++) {
+      const job = SEED_DATA[i];
       const { notes, ...jobData } = job;
       await prisma.job.create({
         data: {
           ...jobData,
+          position: i * 1000.0,
           notes: {
             create: notes.map((n) => ({
               id: n.id,
@@ -151,7 +153,10 @@ export async function POST() {
           orderBy: { createdAt: "desc" },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [
+        { position: "asc" },
+        { createdAt: "desc" },
+      ],
     });
 
     return NextResponse.json(

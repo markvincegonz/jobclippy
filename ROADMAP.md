@@ -222,6 +222,14 @@
   - Local optimistic state and clipper sync events (`jobclippy:synced`) cleanly merge with incoming database payloads without data wiping or race conditions.
   - Database re-seeding handled strictly through PostgreSQL Prisma seeder ([seed.ts](prisma/seed.ts)) and dedicated seeder endpoint ([reset/route.ts](src/app/api/jobs/reset/route.ts)).
   - Validated across all 76 E2E tests including [extension-db-direct.spec.ts](tests/extension-db-direct.spec.ts) and [drag-and-drop.spec.ts](tests/drag-and-drop.spec.ts).
+- [x] **Database-Backed Card Ordering & Pure In-Memory Single Source of Truth (Ghost Job Purge)**
+  - Added `position Float @default(0)` with index `[stage, position]` in `prisma/schema.prisma` and updated `prisma/seed.ts` and `reset/route.ts` with spaced initial positions (`index * 1000.0`).
+  - Completely eliminated `localStorage` caching of jobs (`STORAGE_KEY = "jobclippy_jobs_v1"`), removing the local-only resurrection loop that caused ghost jobs and cross-browser divergence.
+  - Updated [job-store.tsx](src/lib/job-store.tsx) to maintain jobs strictly in React in-memory state initialized directly from `GET /api/jobs`.
+  - Implemented fractional position calculations in `reorderJob`, persisting stage and card position to `PATCH /api/jobs/[id]`.
+  - Decoupled [bridge.js](extension/content/bridge.js) from `localStorage` to notify the dashboard via in-memory events without writing to client storage.
+  - Preserved non-job UI preferences (`jobclippy_sidebar_collapsed_v1` and dark/light mode) in `localStorage`.
+  - Validated with cross-browser multi-session isolation tests in [extension-db-direct.spec.ts](tests/extension-db-direct.spec.ts) and [drag-and-drop.spec.ts](tests/drag-and-drop.spec.ts).
 
 ---
 

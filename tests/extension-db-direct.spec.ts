@@ -121,4 +121,48 @@ test.describe("Direct PostgreSQL Persistence & Extension Configuration", () => {
     expect(designer).toBeTruthy();
     expect(designer.company).toBe("LinearFlow");
   });
+
+  test("Two independent browser sessions see identical state without ghost item resurrection", async ({ browser, request }) => {
+    // Reset database to known seeds
+    await request.post("http://localhost:3000/api/jobs/reset");
+
+    // Create Browser Context 2 (e.g. second browser simulation with stale localStorage ghost job)
+    const context2 = await browser.newContext({
+      viewport: { width: 1280, height: 720 },
+      colorScheme: "dark",
+    });
+    const page2 = await context2.newPage();
+
+    // Pre-populate stale localStorage in Context 2 before loading dashboard
+    await page2.addInitScript(() => {
+      localStorage.setItem(
+        "jobclippy_jobs_v1",
+        JSON.stringify([
+          {
+            id: "ghost-job-9999",
+            title: "Ghost Job That Does Not Exist in PostgreSQL",
+            company: "Phantom Corp",
+            location: "Nowhere",
+            salary: "$999K",
+            stage: "wishlist",
+            skills: ["Spooky"],
+            description: "This ghost job should never be loaded by the pure database store.",
+            url: "https://ghost.example.com",
+            notes: [],
+            createdAt: new Date().toISOString(),
+          },
+        ])
+      );
+    });
+
+    await page2.goto("http://localhost:3000/board");
+    await page2.waitForLoadState("networkidle");
+
+    // Verify Ghost Job is NOT displayed in Context 2
+    await expect(page2.getByText("Ghost Job That Does Not Exist in PostgreSQL")).toHaveCount(0);
+    // Context 2 displays real database opportunity
+    await expect(page2.getByText("Senior Product Designer")).toBeVisible();
+
+    await context2.close();
+  });
 });

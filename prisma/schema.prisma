@@ -29,9 +29,11 @@ model Job {
   updatedAt     DateTime   @updatedAt
   appliedAt     DateTime?
   interviewDate DateTime?
+  position      Float      @default(0)
   notes         JobNote[]
 
   @@index([stage])
+  @@index([stage, position])
   @@index([company])
   @@map("jobs")
 }

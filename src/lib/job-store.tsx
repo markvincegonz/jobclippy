@@ -20,6 +20,7 @@ export interface Job {
   skills: string[];
   description: string;
   url: string;
+  position?: number;
   notes: JobNote[];
   createdAt: string;
   appliedAt?: string;
@@ -46,9 +47,7 @@ interface JobStoreContextType {
 
 const JobStoreContext = React.createContext<JobStoreContextType | null>(null);
 
-const STORAGE_KEY = "jobclippy_jobs_v1";
-
-let memoryJobs: Job[] | null = null;
+let memoryJobs: Job[] = EMPTY_JOBS;
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -57,102 +56,49 @@ function notify() {
   }
 }
 
-function getStoredJobs(): Job[] {
-  if (typeof window === "undefined") {
-    return EMPTY_JOBS;
-  }
-  if (memoryJobs === null) {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        memoryJobs = Array.isArray(parsed) ? parsed : [];
-      } else {
-        memoryJobs = [];
-      }
-    } catch {
-      memoryJobs = [];
-    }
-  }
-  return memoryJobs ?? EMPTY_JOBS;
+function getMemorySnapshot(): Job[] {
+  return memoryJobs;
 }
 
-function saveStoredJobs(jobs: Job[]) {
+function setMemoryJobs(jobs: Job[]) {
   memoryJobs = jobs;
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
-    } catch {}
-  }
   notify();
 }
 
-function subscribe(onStoreChange: () => void) {
-  listeners.add(onStoreChange);
-
-  const handleCustomSync = (e: Event) => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          memoryJobs = parsed;
-          notify();
-          return;
-        }
-      }
-    } catch {}
-
-    const customEvent = e as CustomEvent<{ added?: number; job?: Job; jobs?: Job[] }>;
+if (typeof window !== "undefined") {
+  window.addEventListener("jobclippy:synced", (e: Event) => {
+    const customEvent = e as CustomEvent<{ added?: number; job?: Job; jobs?: Job[]; source?: string }>;
     const detail = customEvent?.detail;
 
     if (detail?.job) {
-      const current = getStoredJobs();
-      if (!current.some((j) => j.id === detail.job!.id)) {
-        saveStoredJobs([detail.job, ...current]);
+      if (!memoryJobs.some((j) => j.id === detail.job!.id)) {
+        setMemoryJobs([detail.job, ...memoryJobs]);
       }
     } else if (Array.isArray(detail?.jobs) && detail.jobs.length > 0) {
-      const current = getStoredJobs();
-      const currentIds = new Set(current.map((j) => j.id));
+      const currentIds = new Set(memoryJobs.map((j) => j.id));
       const toAdd = detail.jobs.filter((j) => !currentIds.has(j.id));
       if (toAdd.length > 0) {
-        saveStoredJobs([...toAdd, ...current]);
+        setMemoryJobs([...toAdd, ...memoryJobs]);
       }
     } else {
       fetch("/api/jobs")
         .then((res) => res.json())
         .then((res) => {
           if (res.ok && Array.isArray(res.data)) {
-            saveStoredJobs(res.data);
+            const dbIds = new Set(res.data.map((j: Job) => j.id));
+            const inMemoryOnly = memoryJobs.filter((j) => !dbIds.has(j.id));
+            setMemoryJobs([...inMemoryOnly, ...res.data]);
           }
         })
         .catch(() => {});
     }
-  };
+  });
+}
 
-  const handleStorage = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEY && e.newValue) {
-      try {
-        const parsed = JSON.parse(e.newValue);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          saveStoredJobs(parsed);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  };
-
-  if (typeof window !== "undefined") {
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("jobclippy:synced", handleCustomSync);
-  }
+function subscribe(onStoreChange: () => void) {
+  listeners.add(onStoreChange);
   return () => {
     listeners.delete(onStoreChange);
-    if (typeof window !== "undefined") {
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("jobclippy:synced", handleCustomSync);
-    }
   };
 }
 
@@ -165,14 +111,14 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
     () => false
   );
 
-  const storedJobs = React.useSyncExternalStore(
+  const currentJobs = React.useSyncExternalStore(
     subscribe,
-    getStoredJobs,
+    getMemorySnapshot,
     getServerSnapshot
   );
 
   // During SSR and initial client hydration, guarantee matching HTML with server
-  const jobs = isHydrated ? storedJobs : EMPTY_JOBS;
+  const jobs = isHydrated ? currentJobs : EMPTY_JOBS;
   const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -183,9 +129,9 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
       .then((res) => {
         if (res.ok && Array.isArray(res.data)) {
           const dbIds = new Set(res.data.map((j: Job) => j.id));
-          const current = getStoredJobs();
-          const localOnly = current.filter((j) => !dbIds.has(j.id));
-          saveStoredJobs([...localOnly, ...res.data]);
+          const current = getMemorySnapshot();
+          const inMemoryOnly = current.filter((j) => !dbIds.has(j.id));
+          setMemoryJobs([...inMemoryOnly, ...res.data]);
         }
       })
       .catch((err) => {
@@ -198,7 +144,13 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
 
   const addJob = React.useCallback(
     (jobData: Omit<Job, "id" | "createdAt" | "notes"> & { notes?: string }) => {
-      const currentJobs = getStoredJobs();
+      const existing = getMemorySnapshot();
+      const targetStage = jobData.stage || "wishlist";
+      const stageJobs = existing.filter((j) => j.stage === targetStage);
+      const minPos = stageJobs.length > 0
+        ? Math.min(...stageJobs.map((j) => j.position ?? 0)) - 1000
+        : 0;
+
       const tempId = `job-${Date.now()}`;
       const newJob: Job = {
         id: tempId,
@@ -206,7 +158,8 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
         company: jobData.company,
         location: jobData.location || "Remote",
         salary: jobData.salary || "Salary not listed",
-        stage: jobData.stage || "wishlist",
+        stage: targetStage,
+        position: minPos,
         skills: jobData.skills || [],
         description: jobData.description || "",
         url: jobData.url || "https://linkedin.com",
@@ -222,21 +175,21 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
           : [],
       };
 
-      saveStoredJobs([newJob, ...currentJobs]);
+      setMemoryJobs([newJob, ...existing]);
 
       // Direct persistence to PostgreSQL database
       fetch("/api/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(jobData),
+        body: JSON.stringify({ ...jobData, position: minPos }),
       })
         .then((res) => res.json())
         .then((data) => {
           if (data.ok && data.data?.id) {
-            const updated = getStoredJobs().map((j) =>
+            const updated = getMemorySnapshot().map((j) =>
               j.id === tempId ? { ...j, id: data.data.id, notes: data.data.notes || j.notes } : j
             );
-            saveStoredJobs(updated);
+            setMemoryJobs(updated);
             setSelectedJobId((current) => (current === tempId ? data.data.id : current));
           }
         })
@@ -249,8 +202,8 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
 
   const updateJob = React.useCallback(
     (id: string, updates: Partial<Job>) => {
-      const currentJobs = getStoredJobs();
-      saveStoredJobs(currentJobs.map((j) => (j.id === id ? { ...j, ...updates } : j)));
+      const existing = getMemorySnapshot();
+      setMemoryJobs(existing.map((j) => (j.id === id ? { ...j, ...updates } : j)));
 
       fetch(`/api/jobs/${id}`, {
         method: "PATCH",
@@ -263,12 +216,17 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
 
   const moveStage = React.useCallback(
     (id: string, newStage: JobStage) => {
-      const currentJobs = getStoredJobs();
-      let updatedPayload: Partial<Job> = { stage: newStage };
-      saveStoredJobs(
-        currentJobs.map((j) => {
+      const existing = getMemorySnapshot();
+      const targetJobs = existing.filter((j) => j.stage === newStage && j.id !== id);
+      const minPos = targetJobs.length > 0
+        ? Math.min(...targetJobs.map((j) => j.position ?? 0)) - 1000
+        : 0;
+
+      let updatedPayload: Partial<Job> = { stage: newStage, position: minPos };
+      setMemoryJobs(
+        existing.map((j) => {
           if (j.id !== id) return j;
-          const updates: Partial<Job> = { stage: newStage };
+          const updates: Partial<Job> = { stage: newStage, position: minPos };
           if (newStage === "applied" && !j.appliedAt) {
             updates.appliedAt = new Date().toISOString();
           }
@@ -288,23 +246,15 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
 
   const reorderJob = React.useCallback(
     (id: string, targetStage: JobStage, targetIndexInStage?: number) => {
-      const currentJobs = getStoredJobs();
-      const movingJob = currentJobs.find((j) => j.id === id);
+      const existing = getMemorySnapshot();
+      const movingJob = existing.find((j) => j.id === id);
       if (!movingJob) return;
 
-      const isStageChanged = movingJob.stage !== targetStage;
-      const updatedMovingJob: Job = {
-        ...movingJob,
-        stage: targetStage,
-        ...(targetStage === "applied" && !movingJob.appliedAt
-          ? { appliedAt: new Date().toISOString() }
-          : {}),
-      };
-
-      const remaining = currentJobs.filter((j) => j.id !== id);
+      const remaining = existing.filter((j) => j.id !== id);
       const targetStageJobs = remaining.filter((j) => j.stage === targetStage);
 
       let finalIndexInRemaining: number;
+      let newPosition: number;
 
       if (
         targetIndexInStage === undefined ||
@@ -313,33 +263,49 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
       ) {
         if (targetStageJobs.length === 0) {
           finalIndexInRemaining = remaining.length;
+          newPosition = 0;
         } else {
           const lastJobInStage = targetStageJobs[targetStageJobs.length - 1];
-          const lastIndex = remaining.indexOf(lastJobInStage);
-          finalIndexInRemaining = lastIndex + 1;
+          finalIndexInRemaining = remaining.indexOf(lastJobInStage) + 1;
+          newPosition = (lastJobInStage.position ?? 0) + 1000;
         }
+      } else if (targetIndexInStage === 0) {
+        const firstJobInStage = targetStageJobs[0];
+        finalIndexInRemaining = remaining.indexOf(firstJobInStage);
+        newPosition = (firstJobInStage.position ?? 0) - 1000;
       } else {
-        const targetJob = targetStageJobs[targetIndexInStage];
-        finalIndexInRemaining = remaining.indexOf(targetJob);
+        const prevJob = targetStageJobs[targetIndexInStage - 1];
+        const nextJob = targetStageJobs[targetIndexInStage];
+        finalIndexInRemaining = remaining.indexOf(nextJob);
+        const prevPos = prevJob.position ?? 0;
+        const nextPos = nextJob.position ?? 0;
+        newPosition = (prevPos + nextPos) / 2;
       }
+
+      const updatedMovingJob: Job = {
+        ...movingJob,
+        stage: targetStage,
+        position: newPosition,
+        ...(targetStage === "applied" && !movingJob.appliedAt
+          ? { appliedAt: new Date().toISOString() }
+          : {}),
+      };
 
       const nextJobs = [...remaining];
       nextJobs.splice(finalIndexInRemaining, 0, updatedMovingJob);
+      setMemoryJobs(nextJobs);
 
-      saveStoredJobs(nextJobs);
-
-      if (isStageChanged) {
-        fetch(`/api/jobs/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            stage: targetStage,
-            ...(targetStage === "applied" && !movingJob.appliedAt
-              ? { appliedAt: updatedMovingJob.appliedAt }
-              : {}),
-          }),
-        }).catch((err) => console.warn("Failed to persist stage move to database:", err));
-      }
+      fetch(`/api/jobs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stage: targetStage,
+          position: newPosition,
+          ...(targetStage === "applied" && !movingJob.appliedAt
+            ? { appliedAt: updatedMovingJob.appliedAt }
+            : {}),
+        }),
+      }).catch((err) => console.warn("Failed to persist stage/position move to database:", err));
     },
     []
   );
@@ -352,9 +318,9 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
         text: text.trim(),
         createdAt: new Date().toISOString(),
       };
-      const currentJobs = getStoredJobs();
-      saveStoredJobs(
-        currentJobs.map((j) => (j.id === jobId ? { ...j, notes: [newNote, ...j.notes] } : j))
+      const existing = getMemorySnapshot();
+      setMemoryJobs(
+        existing.map((j) => (j.id === jobId ? { ...j, notes: [newNote, ...j.notes] } : j))
       );
 
       fetch(`/api/jobs/${jobId}`, {
@@ -373,13 +339,13 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
 
   const deleteJob = React.useCallback(
     (id: string): Job | null => {
-      const currentJobs = getStoredJobs();
-      const targetIndex = currentJobs.findIndex((j) => j.id === id);
+      const existing = getMemorySnapshot();
+      const targetIndex = existing.findIndex((j) => j.id === id);
       if (targetIndex === -1) return null;
-      const targetJob = currentJobs[targetIndex];
+      const targetJob = existing[targetIndex];
 
       lastDeletedRecordRef.current = { job: targetJob, index: targetIndex };
-      saveStoredJobs(currentJobs.filter((j) => j.id !== id));
+      setMemoryJobs(existing.filter((j) => j.id !== id));
       setSelectedJobId((current) => (current === id ? null : current));
 
       fetch(`/api/jobs/${id}`, { method: "DELETE" }).catch((err) =>
@@ -396,12 +362,12 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
     if (!record) return null;
     const { job, index } = record;
 
-    const currentJobs = getStoredJobs();
-    if (currentJobs.some((j) => j.id === job.id)) return null;
-    const next = [...currentJobs];
+    const existing = getMemorySnapshot();
+    if (existing.some((j) => j.id === job.id)) return null;
+    const next = [...existing];
     const insertAt = Math.min(Math.max(0, index), next.length);
     next.splice(insertAt, 0, job);
-    saveStoredJobs(next);
+    setMemoryJobs(next);
 
     fetch("/api/jobs", {
       method: "POST",
@@ -418,13 +384,13 @@ export function JobStoreProvider({ children }: { children: React.ReactNode }) {
       .then((res) => res.json())
       .then((res) => {
         if (res.ok && Array.isArray(res.data)) {
-          saveStoredJobs(res.data);
+          setMemoryJobs(res.data);
         } else {
-          saveStoredJobs([]);
+          setMemoryJobs([]);
         }
       })
       .catch(() => {
-        saveStoredJobs([]);
+        setMemoryJobs([]);
       });
   }, []);
 

@@ -88,6 +88,9 @@ export async function PATCH(
     if (body.interviewDate !== undefined) {
       dataToUpdate.interviewDate = body.interviewDate ? new Date(body.interviewDate) : null;
     }
+    if (body.position !== undefined && typeof body.position === "number") {
+      dataToUpdate.position = body.position;
+    }
 
     // Support adding a note during PATCH
     if (body.newNote && typeof body.newNote === "string" && body.newNote.trim()) {

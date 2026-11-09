@@ -23,7 +23,10 @@ export async function GET() {
           orderBy: { createdAt: "desc" },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [
+        { position: "asc" },
+        { createdAt: "desc" },
+      ],
     });
 
     return NextResponse.json(
@@ -54,6 +57,18 @@ export async function POST(req: NextRequest) {
       ? (body.stage as JobStage)
       : JobStage.wishlist;
 
+    let positionValue = 0;
+    if (typeof body.position === "number") {
+      positionValue = body.position;
+    } else {
+      const minJob = await prisma.job.findFirst({
+        where: { stage: stageValue },
+        orderBy: { position: "asc" },
+        select: { position: true },
+      });
+      positionValue = minJob ? minJob.position - 1000 : 0;
+    }
+
     const newJob = await prisma.job.create({
       data: {
         ...(body.id ? { id: body.id } : {}),
@@ -62,6 +77,7 @@ export async function POST(req: NextRequest) {
         location: body.location || "Remote",
         salary: body.salary || "Salary not listed",
         stage: stageValue,
+        position: positionValue,
         skills: Array.isArray(body.skills) ? body.skills : [],
         description: body.description || "",
         url: body.url || "",
