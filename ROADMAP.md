@@ -230,6 +230,11 @@
   - Decoupled [bridge.js](extension/content/bridge.js) from `localStorage` to notify the dashboard via in-memory events without writing to client storage.
   - Preserved non-job UI preferences (`jobclippy_sidebar_collapsed_v1` and dark/light mode) in `localStorage`.
   - Validated with cross-browser multi-session isolation tests in [extension-db-direct.spec.ts](tests/extension-db-direct.spec.ts) and [drag-and-drop.spec.ts](tests/drag-and-drop.spec.ts).
+- [x] **Comprehensive Local Setup Documentation & Visual Tour**
+  - Completely replaced default Next.js template with production-grade [README.md](README.md) tailored for 100% local, self-hosted deployment.
+  - Fully documented environment variable requirements (`DATABASE_URL`, `DEEPSEEK_API_KEY` for AI job parsing, and graceful heuristic fallback).
+  - Automated high-DPI screenshot capture using Playwright into `docs/screenshots/` (Pipeline Board, Job Detail Sheet, Applications Table, Funnel Analytics, and Command Palette).
+  - Detailed step-by-step Chrome Extension (Manifest V3) installation guide and keyboard navigation cheatsheet.
 
 ---
 
