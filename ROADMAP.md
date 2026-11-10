@@ -185,6 +185,7 @@
 - [x] **Data Sync Bridge**
   - Web message / Chrome Storage sync to JobClippy web application (`jobclippy_jobs_v1`).
   - Instant reactive store update without requiring page reload.
+  - Direct PostgreSQL database synchronization (`POST /api/jobs`) and comprehensive documentation in [README.md](README.md#chrome-extension-mv3-universal-clipper).
 - [x] **AI-Powered 3-Tier Extraction Pipeline**
   - Layer 1: Client DOM pre-cleaning and token budgeting (~1,200 tokens) with optimistic preview.
   - Layer 2: Canonical URL normalization, SHA-256 hashing, and persistent extraction cache.
