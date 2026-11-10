@@ -395,23 +395,9 @@ export function KanbanBoard({
       {/* Top Header — 56px Linear Top Nav (only rendered when standalone) */}
       {!hideHeader && (
         <header className="sticky top-0 z-30 h-14 border-b border-hairline bg-canvas/90 backdrop-blur-md px-6 flex items-center justify-between shadow-none">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-2 border border-hairline overflow-hidden surface-lift group cursor-pointer hover:border-primary/50 transition-colors"
-            title="JobClippy: Your Career Command Center"
-          >
-            <BrandIcon size={22} className="group-hover:scale-105 transition-transform" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <h1 className="text-sm font-medium tracking-tight text-ink">JobClippy</h1>
-            <span className="text-xs text-ink-subtle hidden sm:inline font-normal">
-              Job Hunt Command Center
-            </span>
-            <span className="hidden xl:inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-medium text-primary">
-              <Sparkles className="h-3 w-3" />
-              Empowering your career moves
-            </span>
-          </div>
+        <div className="flex items-center gap-2.5">
+          <BrandIcon size={26} className="shrink-0 hover:scale-105 transition-transform cursor-pointer" />
+          <h1 className="text-sm font-semibold tracking-tight text-ink">JobClippy</h1>
         </div>
 
         <div className="flex items-center gap-2.5">

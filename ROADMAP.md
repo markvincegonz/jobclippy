@@ -42,6 +42,7 @@
   - Floating and top-bar toggle controls with persistent local storage.
 - [x] **Modern Monogram Brand Identity & Mascot**
   - Sleek purple/blue "jc" monogram brand icon across web app (sidebar, topbar, favicon, apple-touch-icon) and Chrome extension (extension icons at 16x16, 48x48, 128x128, and popup header).
+  - Ultra-clean header presentation: containerless, borderless brand icon directly integrated without background box, version badge, or subtitle clutter.
   - Maintained interactive micro-interactions and celebration states.
 
 ---

@@ -12,7 +12,7 @@ test.describe("Job Hunt Command Center Lifecycle & Component Suite", () => {
 
     // Verify 56px Linear header & branding
     await expect(page.getByRole("heading", { name: "JobClippy" })).toBeVisible();
-    await expect(page.getByText("Job Hunt Command Center")).toBeVisible();
+    await expect(page.locator('img[alt="JobClippy Logo"]').first()).toBeVisible();
 
     // Verify 5 pipeline columns
     await expect(page.getByTestId("column-wishlist")).toBeVisible();

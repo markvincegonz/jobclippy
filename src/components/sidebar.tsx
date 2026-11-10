@@ -109,21 +109,11 @@ export function Sidebar({
           )}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex items-center justify-center w-8 h-8 rounded-md bg-surface-2 border border-hairline shrink-0 group overflow-hidden">
-              <BrandIcon size={22} className="group-hover:scale-105 transition-transform" />
-            </div>
+            <BrandIcon size={26} className="shrink-0 hover:scale-105 transition-transform" />
             {!isCollapsed && (
-              <div className="flex flex-col min-w-0 leading-tight">
-                <div className="flex items-center gap-1.5">
-                  <h1 className="text-sm font-semibold tracking-tight text-ink truncate">
-                    JobClippy
-                  </h1>
-                  <span className="px-1 py-0.2 rounded-xs bg-surface-2 border border-hairline text-[10px] font-mono text-ink-subtle">
-                    v0.1
-                  </span>
-                </div>
-                <span className="text-[11px] text-ink-muted truncate">Job Hunt Command Center</span>
-              </div>
+              <h1 className="text-sm font-semibold tracking-tight text-ink truncate">
+                JobClippy
+              </h1>
             )}
           </div>
 

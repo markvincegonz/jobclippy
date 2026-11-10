@@ -11,7 +11,7 @@ test.describe("Admin Sidebar Navigation & App Shell Suite", () => {
 
     // Verify Brand Header
     await expect(sidebar.getByRole("heading", { name: "JobClippy" })).toBeVisible();
-    await expect(sidebar.getByText("Job Hunt Command Center")).toBeVisible();
+    await expect(sidebar.locator('img[alt="JobClippy Logo"]')).toBeVisible();
 
     // Verify Primary View Navigation Buttons
     await expect(page.getByTestId("nav-board-btn")).toBeVisible();
