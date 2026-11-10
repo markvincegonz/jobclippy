@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JobClippy — Job Hunt Command Center",
+  title: "JobClippy | Job Hunt Command Center",
   description: "Intelligent job search dashboard and visual pipeline",
 };
 
