@@ -29,7 +29,7 @@ import { JobDetailSheet } from "@/components/job-detail-sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useJobStore, JobStage } from "@/lib/job-store";
 import { useToast } from "@/components/ui/toast";
-import { ClippyMascot } from "@/components/clippy-mascot";
+import { BrandIcon } from "@/components/brand-icon";
 import { ConfettiCelebration } from "@/components/confetti-celebration";
 import { cn } from "@/lib/utils";
 
@@ -397,10 +397,10 @@ export function KanbanBoard({
         <header className="sticky top-0 z-30 h-14 border-b border-hairline bg-canvas/90 backdrop-blur-md px-6 flex items-center justify-between shadow-none">
         <div className="flex items-center gap-3">
           <div
-            className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-2 border border-hairline text-primary surface-lift group cursor-pointer hover:border-primary/50 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-2 border border-hairline overflow-hidden surface-lift group cursor-pointer hover:border-primary/50 transition-colors"
             title="JobClippy: Your Career Command Center"
           >
-            <ClippyMascot className="h-5 w-5 group-hover:scale-110 transition-transform" />
+            <BrandIcon size={22} className="group-hover:scale-105 transition-transform" />
           </div>
           <div className="flex items-baseline gap-2">
             <h1 className="text-sm font-medium tracking-tight text-ink">JobClippy</h1>

@@ -19,7 +19,7 @@ import {
   Archive,
   Keyboard,
 } from "lucide-react";
-import { ClippyMascot } from "@/components/clippy-mascot";
+import { BrandIcon } from "@/components/brand-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useJobStore, JobStage } from "@/lib/job-store";
 import { cn } from "@/lib/utils";
@@ -109,8 +109,8 @@ export function Sidebar({
           )}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex items-center justify-center w-8 h-8 rounded-md bg-surface-2 border border-hairline shrink-0 group">
-              <ClippyMascot className="h-4.5 w-4.5 text-primary group-hover:scale-110 transition-transform" />
+            <div className="flex items-center justify-center w-8 h-8 rounded-md bg-surface-2 border border-hairline shrink-0 group overflow-hidden">
+              <BrandIcon size={22} className="group-hover:scale-105 transition-transform" />
             </div>
             {!isCollapsed && (
               <div className="flex flex-col min-w-0 leading-tight">

@@ -1,6 +1,8 @@
-# JobClippy
-
 <div align="center">
+
+<img src="public/brand-icon.png" alt="JobClippy Logo" width="80" height="80" />
+
+# JobClippy
 
 **Intelligent Job Search Command Center & MV3 Universal Web Clipper**
 
