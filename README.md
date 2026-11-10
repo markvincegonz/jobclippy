@@ -33,7 +33,7 @@
 3. [Prerequisites](#prerequisites)
 4. [Step-by-Step Local Setup](#step-by-step-local-setup)
 5. [Environment Variables & API Keys](#environment-variables--api-keys)
-6. [Chrome Extension (MV3 Universal Clipper)](#chrome-extension-mv3-universal-clipper)
+6. [Installing the Chrome Extension](#installing-the-chrome-extension)
 7. [Keyboard Shortcuts & Accelerators](#keyboard-shortcuts--accelerators)
 8. [Automated Test Suite](#automated-test-suite)
 9. [Troubleshooting](#troubleshooting)
@@ -213,82 +213,21 @@ JobClippy requires two primary environment variables:
 
 ---
 
-## Chrome Extension (MV3 Universal Clipper)
+## Installing the Chrome Extension
 
-The JobClippy Chrome Extension (`extension/`) is a Manifest V3 browser companion that transforms your browser into an ambient job capture tool. It allows you to clip job postings from any website directly into your local PostgreSQL database with a single click.
+The JobClippy Chrome Extension allows you to clip jobs with a single click from LinkedIn, Indeed, JobStreet, Seek, or any company career page.
 
-```
-+--------------------------------------------------------------------------------+
-|                        CHROME EXTENSION PIPELINE                               |
-+--------------------------------------------------------------------------------+
-|                                                                                |
-|  1. ACTIVE TAB EXTRACTION                                                      |
-|     - Schema.org JSON-LD structural parser                                     |
-|     - Platform-tailored rules (LinkedIn, Indeed, JobStreet, Seek, ATSs)        |
-|     - Universal Reading Pane Scorer (isolates active right pane on split views)|
-|                                                                                |
-|  2. POPUP INTERFACE & STAGE SELECTION                                          |
-|     - Minimalist Linear Dark UI with auto-detection pill                       |
-|     - Initial stage selection (Wishlist, Applied, Interviewing, Offer)         |
-|     - Personal note capture                                                    |
-|                                                                                |
-|  3. DIRECT DUAL-BROADCAST SYNC                                                 |
-|     - Direct HTTP POST to http://localhost:3000/api/jobs (PostgreSQL)          |
-|     - Real-time window.postMessage bridge to open dashboard tabs               |
-|     - chrome.storage.local offline queue if dashboard/server is closed        |
-+--------------------------------------------------------------------------------+
-```
+1. Open Google Chrome and navigate to `chrome://extensions`.
+2. Enable **Developer mode** using the toggle switch in the top-right corner.
+3. Click the **Load unpacked** button in the top-left corner.
+4. Select the `extension/` directory inside this repository (`jobclippy/extension`).
+5. Click the puzzle icon in Chrome's toolbar and **pin** JobClippy for quick access.
 
-### Key Capabilities
-
-1. **Smart Heuristic & Schema.org Extraction:**
-   - Automatically extracts **Job Title**, **Company Name**, **Location**, **Salary Range**, and **Skill Chips**.
-   - Inspects `application/ld+json` Schema.org `JobPosting` structured data before falling back to DOM parsing.
-2. **Two-Pane Split Layout Isolation:**
-   - Dedicated extractors for split search results (e.g. Indeed and JobStreet), tracking active card parameters (`vjk`, canonical job ID) so it never captures generic page titles like *"Job Search | Indeed"*.
-   - Universal Reading Pane Scorer evaluates candidate DOM containers using text density, heading weights, and semantic layout analysis on arbitrary company portals.
-3. **Right-Click Highlight-to-Clip:**
-   - Highlight any text block on a webpage, right-click, and select **"Save Highlighted Job to JobClippy"** via the Chrome Context Menu.
-4. **Zero-Reload Dashboard Bridge:**
-   - When a JobClippy dashboard tab is open, clipped opportunities appear immediately via `content/bridge.js` window messaging without requiring a page refresh.
-5. **Database-Direct Persistence:**
-   - Saves directly to your containerized PostgreSQL database (`/api/jobs`), preventing data divergence or ghost cards across multiple browser windows.
-
----
-
-### Step-by-Step Installation
-
-The extension is included in the `extension/` folder and runs as an unpacked Manifest V3 extension in Google Chrome, Brave, Arc, or Microsoft Edge.
-
-1. **Open the Extensions Page:**
-   - Chrome / Brave: Navigate to `chrome://extensions`
-   - Edge: Navigate to `edge://extensions`
-2. **Enable Developer Mode:**
-   - Turn on the **Developer mode** toggle switch in the top-right corner.
-3. **Load Unpacked Extension:**
-   - Click the **Load unpacked** button in the top-left toolbar.
-   - In the file picker, select the `extension/` folder in the root of this repository (`jobclippy/extension`).
-4. **Pin for Quick Access:**
-   - Click the puzzle icon in your browser toolbar and pin **JobClippy**.
-
-> [!TIP]
-> **Developing & Reloading:** When making changes to `extension/content.js`, `extension/popup/popup.js`, or `extension/manifest.json`, click the reload circular arrow icon on the JobClippy card in `chrome://extensions` to apply updates instantly.
-
----
-
-### How to Use the Extension
-
-1. **Browse to Any Job Posting:**
-   - Open any job listing on LinkedIn, Indeed, JobStreet, Seek, Greenhouse, Lever, Ashby, or a company career page.
-2. **Open the Extension Popup:**
-   - Click the JobClippy monogram logo in your toolbar.
-   - The status pill will display `Detecting...` and transition to `Ready to Clip`.
-3. **Select Pipeline Stage & Add Notes:**
-   - Choose the pipeline column where this job should land (*Wishlist*, *Applied*, *Interviewing*, *Offer*, *Archived*).
-   - Optionally add a quick note (e.g., *"Referred by Alex"*, *"Follow up next Tuesday"*).
-4. **Click "Clip to JobClippy":**
-   - The button shows a loading spinner and transitions to `Saved!`.
-   - Your job is stored in PostgreSQL and immediately rendered on your dashboard.
+### Using the Clipper:
+- Navigate to any job posting (e.g., on LinkedIn or Indeed).
+- Click the **JobClippy extension icon**.
+- Select the initial target stage (default: *Wishlist*) and optionally add a personal note.
+- Click **Clip to JobClippy**. The opportunity is saved directly to your local PostgreSQL database and instantly appears on your open dashboard without page reloads.
 
 ---
 
